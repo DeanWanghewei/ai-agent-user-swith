@@ -1,0 +1,36 @@
+# Test files
+test/
+tests/
+*.test.js
+
+# Development files
+.github/
+.vscode/
+.idea/
+
+# Documentation
+RELEASE.md
+.git/
+.gitignore
+
+# Build output (we only need source for npm)
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# Project config examples
+.ais-project-config
+
+# Editor
+*.swp
+*.swo
+*~

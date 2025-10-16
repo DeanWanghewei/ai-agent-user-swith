@@ -1,0 +1,60 @@
+{
+  "name": "ai-account-switch",
+  "version": "1.2.0",
+  "description": "A cross-platform CLI tool to manage and switch Claude/Codex account configurations",
+  "main": "src/index.js",
+  "bin": {
+    "ais": "./bin/ais.js"
+  },
+  "scripts": {
+    "test": "node src/index.js",
+    "link": "npm link",
+    "build": "pkg . --targets node18-linux-x64,node18-macos-x64,node18-win-x64 --output dist/ais"
+  },
+  "keywords": [
+    "cli",
+    "claude",
+    "codex",
+    "account",
+    "switch",
+    "cross-platform",
+    "claude-code",
+    "ai"
+  ],
+  "author": "deanwanghewei@gmail.comnpm view ai-account-switch",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "commander": "^11.0.0",
+    "chalk": "^4.1.2",
+    "inquirer": "^8.2.5"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "pkg": {
+    "scripts": [
+      "src/**/*.js"
+    ],
+    "assets": [],
+    "targets": [
+      "node18-linux-x64",
+      "node18-macos-x64",
+      "node18-win-x64"
+    ],
+    "outputPath": "dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/ai-agent-user-swith.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/ai-agent-user-swith/issues"
+  },
+  "homepage": "https://github.com/yourusername/ai-agent-user-swith#readme"
+}
