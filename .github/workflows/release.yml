@@ -84,6 +84,8 @@ jobs:
             dist/ais-linux/ais-linux
             dist/ais-macos/ais-macos
             dist/ais-win.exe/ais-win.exe
+            install.ps1
+            install.bat
           draft: false
           prerelease: false
           generate_release_notes: true

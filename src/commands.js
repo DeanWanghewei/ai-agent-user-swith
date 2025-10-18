@@ -90,31 +90,65 @@ async function addAccount(name, options) {
     accountData.customEnv = {};
     let addMore = true;
 
-    console.log(chalk.cyan('\n💡 Examples: CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1, HTTP_PROXY=http://proxy.com\n'));
+    console.log(chalk.cyan('\n💡 Tip: Enter in format KEY=VALUE (e.g., CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1)'));
+    console.log(chalk.gray('   Or leave empty to finish\n'));
 
     while (addMore) {
       const envInput = await inquirer.prompt([
         {
           type: 'input',
-          name: 'key',
-          message: 'Environment variable name (e.g., CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC):',
+          name: 'envVar',
+          message: 'Environment variable (KEY=VALUE format):',
           validate: (input) => {
-            if (!input.trim()) return 'Variable name is required';
-            if (!/^[A-Z_][A-Z0-9_]*$/.test(input.trim())) {
-              return 'Invalid format. Use uppercase letters, numbers, and underscores (e.g., MY_VAR)';
+            // Allow empty input to skip
+            if (!input.trim()) return true;
+
+            // Check if input contains '='
+            if (!input.includes('=')) {
+              return 'Invalid format. Use KEY=VALUE format (e.g., MY_VAR=value)';
             }
+
+            const [key, ...valueParts] = input.split('=');
+            const value = valueParts.join('='); // In case value contains '='
+
+            if (!key.trim()) {
+              return 'Variable name cannot be empty';
+            }
+
+            if (!/^[A-Z_][A-Z0-9_]*$/.test(key.trim())) {
+              return 'Invalid variable name. Use uppercase letters, numbers, and underscores (e.g., MY_VAR)';
+            }
+
+            if (!value.trim()) {
+              return 'Variable value cannot be empty';
+            }
+
             return true;
           }
-        },
-        {
-          type: 'input',
-          name: 'value',
-          message: 'Environment variable value:',
-          validate: (input) => input.trim() !== '' || 'Value is required'
         }
       ]);
 
-      accountData.customEnv[envInput.key.trim()] = envInput.value.trim();
+      // If user left input empty, skip adding more
+      if (!envInput.envVar.trim()) {
+        break;
+      }
+
+      // Parse KEY=VALUE
+      const [key, ...valueParts] = envInput.envVar.split('=');
+      const value = valueParts.join('='); // In case value contains '='
+
+      accountData.customEnv[key.trim()] = value.trim();
+
+      // Display currently added variables
+      console.log(chalk.green('\n✓ Added:'), chalk.cyan(`${key.trim()}=${value.trim()}`));
+
+      if (Object.keys(accountData.customEnv).length > 0) {
+        console.log(chalk.bold('\n📋 Current environment variables:'));
+        Object.entries(accountData.customEnv).forEach(([k, v]) => {
+          console.log(chalk.gray('   •'), chalk.cyan(`${k}=${v}`));
+        });
+        console.log('');
+      }
 
       const { continueAdding } = await inquirer.prompt([
         {
@@ -128,7 +162,11 @@ async function addAccount(name, options) {
       addMore = continueAdding;
     }
 
-    console.log(chalk.green(`\n✓ Added ${Object.keys(accountData.customEnv).length} custom environment variable(s)\n`));
+    if (Object.keys(accountData.customEnv).length > 0) {
+      console.log(chalk.green(`\n✓ Total: ${Object.keys(accountData.customEnv).length} custom environment variable(s) added\n`));
+    } else {
+      console.log(chalk.yellow('\n⚠ No custom environment variables added\n'));
+    }
   }
 
   // Remove the addCustomEnv flag before saving

@@ -41,22 +41,147 @@ export PATH="$PATH:$(npm config get prefix)/bin"
 
 Download the latest release for your platform from the [Releases page](https://github.com/yourusername/ai-agent-user-swith/releases):
 
-**macOS:**
-```bash
-# Download and install
-curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-macos -o /usr/local/bin/ais
-chmod +x /usr/local/bin/ais
+**Windows (Automatic Installation - Recommended):**
+
+Use the automated installer that downloads the latest version and adds it to PATH automatically:
+
+**Method 1: PowerShell (Recommended)**
+```powershell
+# Run in PowerShell (Administrator recommended for system-wide install)
+irm https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/install.ps1 | iex
 ```
+
+**Method 2: Download and Run Installer Script**
+1. Download `install.ps1` or `install.bat` from the [Releases page](https://github.com/yourusername/ai-agent-user-swith/releases)
+2. Right-click on `install.ps1` and select "Run with PowerShell"
+   - Or run `install.bat` by double-clicking it
+
+The installer will:
+- Download the latest `ais-win.exe`
+- Install to `%LOCALAPPDATA%\ais` (user install) or `C:\Program Files\ais` (system install)
+- Automatically add to PATH
+- Verify the installation
+
+After installation, open a **new terminal** and verify:
+```cmd
+ais --version
+```
+
+**Windows (Manual Installation):**
+
+If you prefer manual installation:
+
+1. Download `ais-win.exe` from the [Releases page](https://github.com/yourusername/ai-agent-user-swith/releases)
+
+2. Choose an installation location (recommended: `C:\Program Files\ais\`)
+   ```cmd
+   mkdir "C:\Program Files\ais"
+   ```
+
+3. Move the downloaded file to the installation directory and rename it:
+   ```cmd
+   move "%USERPROFILE%\Downloads\ais-win.exe" "C:\Program Files\ais\ais.exe"
+   ```
+
+4. Add to PATH:
+
+   **Method 1: Using System Settings (Recommended)**
+   - Open Start Menu and search for "Environment Variables"
+   - Click "Edit the system environment variables"
+   - Click "Environment Variables..." button
+   - Under "System variables" (or "User variables" for current user only), find and select "Path"
+   - Click "Edit..."
+   - Click "New"
+   - Add `C:\Program Files\ais`
+   - Click "OK" on all dialogs
+   - **Restart your terminal** for changes to take effect
+
+   **Method 2: Using PowerShell (Administrator)**
+   ```powershell
+   # Add to User PATH
+   [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Program Files\ais", "User")
+
+   # Or add to System PATH (requires admin)
+   [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Program Files\ais", "Machine")
+   ```
+
+   **Method 3: Using Command Prompt (Administrator)**
+   ```cmd
+   setx PATH "%PATH%;C:\Program Files\ais"
+   ```
+
+5. Verify installation:
+   ```cmd
+   # Open a NEW terminal window
+   ais --version
+   ```
+
+**Note**: If you prefer a user-local installation without admin rights, use `%LOCALAPPDATA%\ais` instead:
+```cmd
+mkdir "%LOCALAPPDATA%\ais"
+move "%USERPROFILE%\Downloads\ais-win.exe" "%LOCALAPPDATA%\ais\ais.exe"
+# Then add %LOCALAPPDATA%\ais to your User PATH
+```
+
+**macOS:**
+
+1. Download and install to `/usr/local/bin`:
+   ```bash
+   curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-macos -o /usr/local/bin/ais
+   chmod +x /usr/local/bin/ais
+   ```
+
+2. If you don't have write permissions for `/usr/local/bin`, use sudo:
+   ```bash
+   sudo curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-macos -o /usr/local/bin/ais
+   sudo chmod +x /usr/local/bin/ais
+   ```
+
+3. Alternatively, install to your user directory (no sudo required):
+   ```bash
+   mkdir -p ~/.local/bin
+   curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-macos -o ~/.local/bin/ais
+   chmod +x ~/.local/bin/ais
+
+   # Add to PATH if not already there
+   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+   source ~/.zshrc
+   ```
+
+4. Verify installation:
+   ```bash
+   ais --version
+   ```
 
 **Linux:**
-```bash
-# Download and install
-curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-linux -o /usr/local/bin/ais
-chmod +x /usr/local/bin/ais
-```
 
-**Windows:**
-Download `ais-win.exe` from the releases page and add it to your PATH.
+1. Download and install to `/usr/local/bin`:
+   ```bash
+   curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-linux -o /usr/local/bin/ais
+   chmod +x /usr/local/bin/ais
+   ```
+
+2. If you don't have write permissions for `/usr/local/bin`, use sudo:
+   ```bash
+   sudo curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-linux -o /usr/local/bin/ais
+   sudo chmod +x /usr/local/bin/ais
+   ```
+
+3. Alternatively, install to your user directory (no sudo required):
+   ```bash
+   mkdir -p ~/.local/bin
+   curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-linux -o ~/.local/bin/ais
+   chmod +x ~/.local/bin/ais
+
+   # Add to PATH if not already there
+   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+
+4. Verify installation:
+   ```bash
+   ais --version
+   ```
 
 ### Option 3: Install from Source
 
@@ -114,7 +239,10 @@ You'll be prompted to enter:
 - Organization ID (optional)
 - Email (optional)
 - Description (optional)
-- Custom environment variables (optional, e.g., `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`)
+- Custom environment variables (optional)
+  - Enter in `KEY=VALUE` format (e.g., `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`)
+  - The tool will display all added variables before completion
+  - Press Enter without input to finish adding variables
 
 #### 2. List All Accounts
 
@@ -232,14 +360,30 @@ This ensures Claude Code CLI automatically uses the correct account for your pro
 
 #### Custom Environment Variables
 
-You can add custom environment variables when creating an account. Common examples:
+You can add custom environment variables when creating an account. When prompted, enter them in `KEY=VALUE` format:
 
+**Input Format:**
+```
+? Environment variable (KEY=VALUE format): CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+✓ Added: CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+
+📋 Current environment variables:
+   • CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+
+? Add another environment variable? (y/N)
+```
+
+**Common Examples:**
 - `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` - Disable non-essential network traffic
 - `HTTP_PROXY=http://proxy.example.com:8080` - Set HTTP proxy
 - `HTTPS_PROXY=https://proxy.example.com:8080` - Set HTTPS proxy
 - Any other environment variables needed for your setup
 
-These custom variables are automatically included in the generated `.claude/settings.local.json` file.
+**Features:**
+- One-line input format (`KEY=VALUE`)
+- Real-time display of added variables
+- Press Enter without input to finish
+- Variables are automatically included in `.claude/settings.local.json`
 
 ## Examples
 
@@ -401,6 +545,14 @@ Contributions are welcome! Feel free to:
 MIT License - feel free to use this tool in your projects!
 
 ## Changelog
+
+### v1.3.0
+- **Improved custom environment variables input**:
+  - One-line `KEY=VALUE` format input (e.g., `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`)
+  - Real-time display of added variables during configuration
+  - Press Enter without input to finish adding variables
+  - Better error messages and user guidance
+- Enhanced documentation with detailed examples and usage instructions
 
 ### v1.2.0
 - Added custom environment variables support for accounts
