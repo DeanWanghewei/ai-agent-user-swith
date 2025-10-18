@@ -61,12 +61,6 @@ async function addAccount(name, options) {
     },
     {
       type: 'input',
-      name: 'organizationId',
-      message: 'Enter Organization ID (optional):',
-      default: ''
-    },
-    {
-      type: 'input',
       name: 'email',
       message: 'Enter associated email (optional):',
       default: ''
@@ -278,7 +272,6 @@ function showInfo() {
   console.log(`${chalk.cyan('Type:')} ${projectAccount.type}`);
   console.log(`${chalk.cyan('API Key:')} ${maskApiKey(projectAccount.apiKey)}`);
   if (projectAccount.apiUrl) console.log(`${chalk.cyan('API URL:')} ${projectAccount.apiUrl}`);
-  if (projectAccount.organizationId) console.log(`${chalk.cyan('Organization ID:')} ${projectAccount.organizationId}`);
   if (projectAccount.email) console.log(`${chalk.cyan('Email:')} ${projectAccount.email}`);
   if (projectAccount.description) console.log(`${chalk.cyan('Description:')} ${projectAccount.description}`);
   if (projectAccount.customEnv && Object.keys(projectAccount.customEnv).length > 0) {
@@ -473,10 +466,6 @@ function doctor() {
       if (claudeConfig.env && claudeConfig.env.ANTHROPIC_BASE_URL) {
         console.log(`   API URL: ${claudeConfig.env.ANTHROPIC_BASE_URL}`);
       }
-
-      if (claudeConfig.env && claudeConfig.env.ANTHROPIC_ORGANIZATION_ID) {
-        console.log(`   Org ID: ${claudeConfig.env.ANTHROPIC_ORGANIZATION_ID}`);
-      }
     } catch (e) {
       console.log(chalk.red(`   ✗ Error reading Claude config: ${e.message}`));
     }
@@ -532,6 +521,17 @@ function doctor() {
   console.log('');
 }
 
+/**
+ * Start Web UI server
+ */
+function startUI() {
+  const UIServer = require('./ui-server');
+  const server = new UIServer();
+
+  console.log(chalk.cyan('\n🌐 Starting AIS Web UI...\n'));
+  server.start();
+}
+
 module.exports = {
   addAccount,
   listAccounts,
@@ -541,5 +541,6 @@ module.exports = {
   showCurrent,
   showPaths,
   exportAccount,
-  doctor
+  doctor,
+  startUI
 };

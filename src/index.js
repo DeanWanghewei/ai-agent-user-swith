@@ -11,7 +11,8 @@ const {
   showCurrent,
   showPaths,
   exportAccount,
-  doctor
+  doctor,
+  startUI
 } = require('./commands');
 
 // Package info
@@ -78,6 +79,12 @@ program
   .description('Diagnose Claude Code configuration issues')
   .action(doctor);
 
+// Web UI command
+program
+  .command('ui')
+  .description('Start web-based account manager UI')
+  .action(startUI);
+
 // Help command
 program
   .command('help')
@@ -97,6 +104,7 @@ program
     console.log('  paths            Show configuration file paths');
     console.log('  doctor           Diagnose Claude Code configuration issues');
     console.log('  export <name>    Export account as JSON');
+    console.log('  ui               Start web-based account manager UI');
     console.log('  help             Display this help message');
     console.log('  version          Show version number\n');
 
@@ -115,6 +123,8 @@ program
     console.log('  ais doctor\n');
     console.log(chalk.gray('  # Remove an account'));
     console.log('  ais remove my-old-account\n');
+    console.log(chalk.gray('  # Start web UI for managing accounts'));
+    console.log('  ais ui\n');
 
     console.log(chalk.bold('FEATURES:'));
     console.log('  • Custom environment variables support');

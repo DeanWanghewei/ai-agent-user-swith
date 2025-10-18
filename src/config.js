@@ -186,11 +186,6 @@ class ConfigManager {
       claudeConfig.env.ANTHROPIC_BASE_URL = account.apiUrl;
     }
 
-    // Add organization ID if specified
-    if (account.organizationId) {
-      claudeConfig.env.ANTHROPIC_ORGANIZATION_ID = account.organizationId;
-    }
-
     // Add custom environment variables if specified
     if (account.customEnv && typeof account.customEnv === 'object') {
       Object.keys(account.customEnv).forEach(key => {
