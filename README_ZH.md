@@ -219,10 +219,15 @@ npm link
 | `ais info` | - | 显示当前项目的账户信息 |
 | `ais current` | - | 显示当前账户名称 |
 | `ais remove [name]` | `rm` | 删除账户 |
+| `ais model list` | `ls` | 列出当前账户的所有模型组 |
+| `ais model add [name]` | - | 添加新的模型组 |
+| `ais model use <name>` | - | 切换到不同的模型组 |
+| `ais model remove [name]` | `rm` | 删除模型组 |
+| `ais model show [name]` | - | 显示模型组配置 |
+| `ais ui` | - | 启动 Web UI 管理界面 |
 | `ais paths` | - | 显示配置文件路径 |
 | `ais doctor` | - | 诊断 Claude Code 配置问题 |
 | `ais export <name>` | - | 导出账户为 JSON 格式 |
-| `ais ui` | - | 启动 Web UI 管理界面 |
 | `ais help` | - | 显示帮助信息 |
 | `ais --version` | - | 显示版本号 |
 
@@ -624,6 +629,27 @@ ais current  # 应该显示你的账户
 MIT License - 欢迎在你的项目中使用此工具！
 
 ## 更新日志
+
+### v1.5.0
+- **模型组管理系统**：
+  - 重构模型配置为灵活的模型组（Model Groups）系统
+  - 每个账户可以拥有多个不同配置的模型组
+  - 快速切换模型组，自动更新 Claude 配置
+- **新增 CLI 命令**：
+  - `ais model list/ls` - 列出当前账户的所有模型组
+  - `ais model add [name]` - 创建新的模型组
+  - `ais model use <name>` - 切换到不同的模型组
+  - `ais model remove/rm [name]` - 删除模型组
+  - `ais model show [name]` - 显示模型组配置详情
+- **功能增强**：
+  - 增强账户创建流程，支持模型组配置
+  - Web UI 更新，支持可折叠的模型组管理界面
+  - 修复切换账户时模型配置不更新的问题
+  - 优化 CLI 输出颜色一致性
+  - DEFAULT_MODEL 自动填充其他未设置的模型配置
+- **向后兼容**：
+  - 保持对旧 modelConfig 结构的支持
+  - 现有账户无需迁移即可继续使用
 
 ### v1.4.0
 - **添加 Web UI 管理界面**：

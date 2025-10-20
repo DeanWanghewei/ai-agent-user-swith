@@ -211,7 +211,14 @@ npm link
 | `ais info` | - | Show current project's account info |
 | `ais current` | - | Show current account name |
 | `ais remove [name]` | `rm` | Remove an account |
+| `ais model list` | `ls` | List all model groups for current account |
+| `ais model add [name]` | - | Add a new model group |
+| `ais model use <name>` | - | Switch to a different model group |
+| `ais model remove [name]` | `rm` | Remove a model group |
+| `ais model show [name]` | - | Show model group configuration |
+| `ais ui` | - | Start web-based UI manager |
 | `ais paths` | - | Show configuration file paths |
+| `ais doctor` | - | Diagnose configuration issues |
 | `ais export <name>` | - | Export account as JSON |
 | `ais help` | - | Display help information |
 | `ais --version` | - | Show version number |
@@ -545,6 +552,47 @@ Contributions are welcome! Feel free to:
 MIT License - feel free to use this tool in your projects!
 
 ## Changelog
+
+### v1.5.0
+- **Model Groups Management System**:
+  - Refactored model configuration to use flexible Model Groups
+  - Each account can have multiple model groups with different configurations
+  - Quick switching between model groups with automatic Claude config updates
+- **New CLI Commands**:
+  - `ais model list/ls` - List all model groups for current account
+  - `ais model add [name]` - Create a new model group
+  - `ais model use <name>` - Switch to a different model group
+  - `ais model remove/rm [name]` - Remove a model group
+  - `ais model show [name]` - Show model group configuration
+- **Enhancements**:
+  - Enhanced account creation workflow with model group support
+  - Web UI updated with collapsible model group management
+  - Fixed model configuration not switching when changing accounts
+  - Better color consistency in CLI output
+  - DEFAULT_MODEL auto-fills other model configs when not specified
+- **Backward Compatibility**:
+  - Maintains support for old modelConfig structure
+  - Existing accounts continue to work without migration
+
+### v1.4.0
+- **Added Web UI Management Interface**:
+  - Modern single-page application with dark/light theme support
+  - Bilingual support (English/Chinese), default English
+  - Visual account management: CRUD operations at a glance
+  - Import/Export functionality: batch manage account configurations
+  - Real-time search and filter accounts
+  - Custom environment variables configuration
+  - Theme follows system settings automatically
+  - iOS-style theme toggle switch
+- **Port Optimization**:
+  - UI server uses random high ports (49152-65535)
+  - Automatic port conflict detection and retry
+- **UI Improvements**:
+  - Fixed inconsistent button positioning in account cards
+  - Buttons now consistently fixed at card bottom
+- **Removed Organization ID**:
+  - Simplified account configuration process
+  - Removed organization ID option from CLI and UI
 
 ### v1.3.0
 - **Improved custom environment variables input**:
