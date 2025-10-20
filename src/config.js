@@ -244,11 +244,31 @@ class ConfigManager {
       }
     }
 
-    // Build Claude configuration
+    // List of model-related environment variable keys that should be cleared
+    const modelKeys = [
+      'DEFAULT_MODEL',
+      'ANTHROPIC_DEFAULT_OPUS_MODEL',
+      'ANTHROPIC_DEFAULT_SONNET_MODEL',
+      'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+      'CLAUDE_CODE_SUBAGENT_MODEL',
+      'ANTHROPIC_MODEL'
+    ];
+
+    // Build Claude configuration - preserve existing env but clear model configs
+    const existingEnv = existingConfig.env || {};
+    const cleanedEnv = {};
+
+    // Copy all existing env vars except model-related ones
+    Object.keys(existingEnv).forEach(key => {
+      if (!modelKeys.includes(key)) {
+        cleanedEnv[key] = existingEnv[key];
+      }
+    });
+
     const claudeConfig = {
       ...existingConfig,
       env: {
-        ...(existingConfig.env || {}),
+        ...cleanedEnv,
         ANTHROPIC_AUTH_TOKEN: account.apiKey
       }
     };
@@ -262,6 +282,47 @@ class ConfigManager {
     if (account.customEnv && typeof account.customEnv === 'object') {
       Object.keys(account.customEnv).forEach(key => {
         claudeConfig.env[key] = account.customEnv[key];
+      });
+    }
+
+    // Add model configuration from active model group
+    if (account.modelGroups && account.activeModelGroup) {
+      const activeGroup = account.modelGroups[account.activeModelGroup];
+
+      if (activeGroup && typeof activeGroup === 'object') {
+        const defaultModel = activeGroup.DEFAULT_MODEL;
+
+        // Set DEFAULT_MODEL if specified
+        if (defaultModel) {
+          claudeConfig.env.DEFAULT_MODEL = defaultModel;
+        }
+
+        // Set other model configs, using DEFAULT_MODEL as fallback if they're not specified
+        modelKeys.slice(1).forEach(key => { // Skip DEFAULT_MODEL as it's already set
+          if (activeGroup[key]) {
+            // If the specific model is configured, use it
+            claudeConfig.env[key] = activeGroup[key];
+          } else if (defaultModel) {
+            // If not configured but DEFAULT_MODEL exists, use DEFAULT_MODEL as fallback
+            claudeConfig.env[key] = defaultModel;
+          }
+        });
+      }
+    }
+    // Backward compatibility: support old modelConfig structure
+    else if (account.modelConfig && typeof account.modelConfig === 'object') {
+      const defaultModel = account.modelConfig.DEFAULT_MODEL;
+
+      if (defaultModel) {
+        claudeConfig.env.DEFAULT_MODEL = defaultModel;
+      }
+
+      modelKeys.slice(1).forEach(key => {
+        if (account.modelConfig[key]) {
+          claudeConfig.env[key] = account.modelConfig[key];
+        } else if (defaultModel) {
+          claudeConfig.env[key] = defaultModel;
+        }
       });
     }
 

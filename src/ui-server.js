@@ -690,6 +690,100 @@ class UIServer {
         .hidden {
             display: none;
         }
+
+        .advanced-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 0;
+            user-select: none;
+            transition: color 0.2s;
+        }
+
+        .advanced-toggle:hover {
+            color: var(--text-primary);
+        }
+
+        .advanced-toggle-icon {
+            transition: transform 0.3s;
+            font-size: 12px;
+        }
+
+        .advanced-toggle-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        .advanced-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            opacity: 0;
+        }
+
+        .advanced-content.expanded {
+            max-height: 600px;
+            opacity: 1;
+        }
+
+        .advanced-content > div {
+            margin-top: 10px;
+        }
+
+        .model-group-item {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: var(--input-bg);
+        }
+
+        .model-group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .model-group-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .model-group-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .model-group-fields {
+            display: grid;
+            gap: 8px;
+        }
+
+        .model-group-fields input {
+            font-size: 13px;
+            padding: 8px;
+        }
+
+        .model-group-fields label {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            margin-bottom: 3px;
+        }
+
+        .active-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #4CAF50;
+            color: white;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -765,6 +859,16 @@ class UIServer {
                     <div id="envVarsList"></div>
                     <button type="button" class="btn btn-secondary btn-small" onclick="addEnvVar()" data-i18n="addVariable">+ 添加变量</button>
                 </div>
+                <div class="form-group">
+                    <div class="advanced-toggle" onclick="toggleAdvancedSettings()">
+                        <span class="advanced-toggle-icon" id="advancedToggleIcon">▶</span>
+                        <span data-i18n="advancedSettings">高级设置 - 模型组</span>
+                    </div>
+                    <div class="advanced-content" id="advancedContent">
+                        <div id="modelGroupsList" style="margin-bottom: 10px;"></div>
+                        <button type="button" class="btn btn-secondary btn-small" onclick="addModelGroupUI()" data-i18n="addModelGroup">+ 添加模型组</button>
+                    </div>
+                </div>
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary" data-i18n="save">保存</button>
                     <button type="button" class="btn btn-secondary" onclick="closeModal()" data-i18n="cancel">取消</button>
@@ -802,12 +906,19 @@ class UIServer {
                 descriptionPlaceholder: '用于生产环境的主账号',
                 customEnv: '自定义环境变量 (可选)',
                 addVariable: '+ 添加变量',
+                advancedSettings: '高级设置 - 模型组',
+                addModelGroup: '+ 添加模型组',
+                modelGroupName: '模型组名称',
+                setActive: '设为激活',
+                defaultModel: 'DEFAULT_MODEL (基础模型，其他未设置时使用)',
+                defaultModelPlaceholder: 'claude-sonnet-4-5-20250929',
                 save: '保存',
                 cancel: '取消',
                 edit: '编辑',
                 delete: '删除',
                 apiKeyLabel: 'API Key',
                 customEnvVars: '自定义环境变量',
+                modelConfigLabel: '模型配置',
                 confirmDelete: '确定要删除账号',
                 confirmOverwrite: '是否覆盖同名的现有账号?',
                 loadFailed: '加载账号失败',
@@ -847,12 +958,19 @@ class UIServer {
                 descriptionPlaceholder: 'Main account for production environment',
                 customEnv: 'Custom Environment Variables (optional)',
                 addVariable: '+ Add Variable',
+                advancedSettings: 'Advanced Settings - Model Groups',
+                addModelGroup: '+ Add Model Group',
+                modelGroupName: 'Model Group Name',
+                setActive: 'Set Active',
+                defaultModel: 'DEFAULT_MODEL (base model, used if others are not set)',
+                defaultModelPlaceholder: 'claude-sonnet-4-5-20250929',
                 save: 'Save',
                 cancel: 'Cancel',
                 edit: 'Edit',
                 delete: 'Delete',
                 apiKeyLabel: 'API Key',
                 customEnvVars: 'Custom Env Vars',
+                modelConfigLabel: 'Model Config',
                 confirmDelete: 'Are you sure you want to delete account',
                 confirmOverwrite: 'Overwrite existing accounts with same names?',
                 loadFailed: 'Failed to load accounts',
@@ -873,6 +991,8 @@ class UIServer {
         let accounts = {};
         let editingAccount = null;
         let envVarCount = 0;
+        let modelGroupCount = 0;
+        let activeModelGroup = null;
 
         // Initialize theme
         function initTheme() {
@@ -997,6 +1117,12 @@ class UIServer {
                             <div class="info-value">\${Object.keys(data.customEnv).join(', ')}</div>
                         </div>
                         \` : ''}
+                        \${data.modelGroups && Object.keys(data.modelGroups).length > 0 ? \`
+                        <div class="account-info">
+                            <div class="info-label">Model Groups</div>
+                            <div class="info-value">\${Object.keys(data.modelGroups).join(', ')} \${data.activeModelGroup ? '(active: ' + data.activeModelGroup + ')' : ''}</div>
+                        </div>
+                        \` : ''}
                     </div>
                     <div class="account-actions">
                         <button class="btn btn-secondary btn-small" onclick="editAccount('\${name}')">\${t('edit')}</button>
@@ -1018,6 +1144,13 @@ class UIServer {
             document.getElementById('accountName').disabled = false;
             document.getElementById('envVarsList').innerHTML = '';
             envVarCount = 0;
+            // Clear model groups
+            document.getElementById('modelGroupsList').innerHTML = '';
+            modelGroupCount = 0;
+            activeModelGroup = null;
+            // Collapse advanced settings
+            document.getElementById('advancedContent').classList.remove('expanded');
+            document.getElementById('advancedToggleIcon').classList.remove('expanded');
             document.getElementById('accountModal').classList.add('active');
         }
 
@@ -1041,6 +1174,76 @@ class UIServer {
                 Object.entries(account.customEnv).forEach(([key, value]) => {
                     addEnvVar(key, value);
                 });
+            }
+
+            // Load model groups
+            document.getElementById('modelGroupsList').innerHTML = '';
+            modelGroupCount = 0;
+            activeModelGroup = null;
+
+            const hasModelGroups = account.modelGroups && Object.keys(account.modelGroups).length > 0;
+            if (hasModelGroups) {
+                Object.entries(account.modelGroups).forEach(([groupName, groupConfig]) => {
+                    const groupId = modelGroupCount++;
+                    const isActive = account.activeModelGroup === groupName;
+
+                    if (isActive) {
+                        activeModelGroup = groupId;
+                    }
+
+                    const container = document.getElementById('modelGroupsList');
+                    const div = document.createElement('div');
+                    div.className = 'model-group-item';
+                    div.id = \`modelGroup\${groupId}\`;
+                    div.innerHTML = \`
+                        <div class="model-group-header">
+                            <div class="model-group-name">
+                                \${groupName}
+                                <span class="active-badge" id="activeBadge\${groupId}" style="display: \${isActive ? 'inline-block' : 'none'}">Active</span>
+                            </div>
+                            <div class="model-group-actions">
+                                <button type="button" class="btn btn-secondary btn-small" onclick="setActiveModelGroup(\${groupId})">\${t('setActive')}</button>
+                                <button type="button" class="btn btn-danger btn-small" onclick="removeModelGroupUI(\${groupId})">×</button>
+                            </div>
+                        </div>
+                        <input type="hidden" id="groupName\${groupId}" value="\${groupName}">
+                        <div class="model-group-fields">
+                            <div>
+                                <label>\${t('defaultModel')}</label>
+                                <input type="text" id="groupDefaultModel\${groupId}" value="\${groupConfig.DEFAULT_MODEL || ''}" placeholder="\${t('defaultModelPlaceholder')}">
+                            </div>
+                            <div>
+                                <label>ANTHROPIC_DEFAULT_OPUS_MODEL</label>
+                                <input type="text" id="groupOpusModel\${groupId}" value="\${groupConfig.ANTHROPIC_DEFAULT_OPUS_MODEL || ''}" placeholder="claude-opus-4-20250514">
+                            </div>
+                            <div>
+                                <label>ANTHROPIC_DEFAULT_SONNET_MODEL</label>
+                                <input type="text" id="groupSonnetModel\${groupId}" value="\${groupConfig.ANTHROPIC_DEFAULT_SONNET_MODEL || ''}" placeholder="claude-sonnet-4-5-20250929">
+                            </div>
+                            <div>
+                                <label>ANTHROPIC_DEFAULT_HAIKU_MODEL</label>
+                                <input type="text" id="groupHaikuModel\${groupId}" value="\${groupConfig.ANTHROPIC_DEFAULT_HAIKU_MODEL || ''}" placeholder="claude-3-5-haiku-20241022">
+                            </div>
+                            <div>
+                                <label>CLAUDE_CODE_SUBAGENT_MODEL</label>
+                                <input type="text" id="groupSubagentModel\${groupId}" value="\${groupConfig.CLAUDE_CODE_SUBAGENT_MODEL || ''}" placeholder="claude-sonnet-4-5-20250929">
+                            </div>
+                            <div>
+                                <label>ANTHROPIC_MODEL</label>
+                                <input type="text" id="groupAnthropicModel\${groupId}" value="\${groupConfig.ANTHROPIC_MODEL || ''}" placeholder="claude-sonnet-4-5-20250929">
+                            </div>
+                        </div>
+                    \`;
+                    container.appendChild(div);
+                });
+
+                // Expand advanced settings if model groups exist
+                document.getElementById('advancedContent').classList.add('expanded');
+                document.getElementById('advancedToggleIcon').classList.add('expanded');
+            } else {
+                // Collapse advanced settings if no model groups
+                document.getElementById('advancedContent').classList.remove('expanded');
+                document.getElementById('advancedToggleIcon').classList.remove('expanded');
             }
 
             document.getElementById('accountModal').classList.add('active');
@@ -1068,6 +1271,112 @@ class UIServer {
             document.getElementById(\`envVar\${id}\`).remove();
         }
 
+        function toggleAdvancedSettings() {
+            const content = document.getElementById('advancedContent');
+            const icon = document.getElementById('advancedToggleIcon');
+
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                icon.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+                icon.classList.add('expanded');
+            }
+        }
+
+        function addModelGroupUI() {
+            const groupId = modelGroupCount++;
+            const groupName = prompt(t('modelGroupName') + ':');
+
+            if (!groupName || !groupName.trim()) {
+                return;
+            }
+
+            const container = document.getElementById('modelGroupsList');
+            const isFirst = container.children.length === 0;
+
+            if (isFirst) {
+                activeModelGroup = groupId;
+            }
+
+            const div = document.createElement('div');
+            div.className = 'model-group-item';
+            div.id = \`modelGroup\${groupId}\`;
+            div.innerHTML = \`
+                <div class="model-group-header">
+                    <div class="model-group-name">
+                        \${groupName}
+                        <span class="active-badge" id="activeBadge\${groupId}" style="display: \${isFirst ? 'inline-block' : 'none'}">Active</span>
+                    </div>
+                    <div class="model-group-actions">
+                        <button type="button" class="btn btn-secondary btn-small" onclick="setActiveModelGroup(\${groupId})">\${t('setActive')}</button>
+                        <button type="button" class="btn btn-danger btn-small" onclick="removeModelGroupUI(\${groupId})">×</button>
+                    </div>
+                </div>
+                <input type="hidden" id="groupName\${groupId}" value="\${groupName}">
+                <div class="model-group-fields">
+                    <div>
+                        <label>\${t('defaultModel')}</label>
+                        <input type="text" id="groupDefaultModel\${groupId}" placeholder="\${t('defaultModelPlaceholder')}">
+                    </div>
+                    <div>
+                        <label>ANTHROPIC_DEFAULT_OPUS_MODEL</label>
+                        <input type="text" id="groupOpusModel\${groupId}" placeholder="claude-opus-4-20250514">
+                    </div>
+                    <div>
+                        <label>ANTHROPIC_DEFAULT_SONNET_MODEL</label>
+                        <input type="text" id="groupSonnetModel\${groupId}" placeholder="claude-sonnet-4-5-20250929">
+                    </div>
+                    <div>
+                        <label>ANTHROPIC_DEFAULT_HAIKU_MODEL</label>
+                        <input type="text" id="groupHaikuModel\${groupId}" placeholder="claude-3-5-haiku-20241022">
+                    </div>
+                    <div>
+                        <label>CLAUDE_CODE_SUBAGENT_MODEL</label>
+                        <input type="text" id="groupSubagentModel\${groupId}" placeholder="claude-sonnet-4-5-20250929">
+                    </div>
+                    <div>
+                        <label>ANTHROPIC_MODEL</label>
+                        <input type="text" id="groupAnthropicModel\${groupId}" placeholder="claude-sonnet-4-5-20250929">
+                    </div>
+                </div>
+            \`;
+            container.appendChild(div);
+        }
+
+        function removeModelGroupUI(id) {
+            const element = document.getElementById(\`modelGroup\${id}\`);
+            if (element) {
+                element.remove();
+
+                // If this was the active group, set the first remaining group as active
+                if (activeModelGroup === id) {
+                    const container = document.getElementById('modelGroupsList');
+                    const remaining = container.children;
+                    if (remaining.length > 0) {
+                        const firstGroupId = parseInt(remaining[0].id.replace('modelGroup', ''));
+                        setActiveModelGroup(firstGroupId);
+                    } else {
+                        activeModelGroup = null;
+                    }
+                }
+            }
+        }
+
+        function setActiveModelGroup(id) {
+            // Hide all active badges
+            document.querySelectorAll('[id^="activeBadge"]').forEach(badge => {
+                badge.style.display = 'none';
+            });
+
+            // Show the active badge for this group
+            const badge = document.getElementById(\`activeBadge\${id}\`);
+            if (badge) {
+                badge.style.display = 'inline-block';
+                activeModelGroup = id;
+            }
+        }
+
         async function saveAccount(event) {
             event.preventDefault();
 
@@ -1093,6 +1402,43 @@ class UIServer {
 
             if (Object.keys(accountData.customEnv).length === 0) {
                 delete accountData.customEnv;
+            }
+
+            // Collect model groups
+            accountData.modelGroups = {};
+            accountData.activeModelGroup = null;
+
+            const modelGroupsList = document.getElementById('modelGroupsList');
+            modelGroupsList.querySelectorAll('.model-group-item').forEach(item => {
+                const groupId = parseInt(item.id.replace('modelGroup', ''));
+                const groupName = document.getElementById(\`groupName\${groupId}\`).value;
+
+                const groupConfig = {};
+                const defaultModel = document.getElementById(\`groupDefaultModel\${groupId}\`).value.trim();
+                const opusModel = document.getElementById(\`groupOpusModel\${groupId}\`).value.trim();
+                const sonnetModel = document.getElementById(\`groupSonnetModel\${groupId}\`).value.trim();
+                const haikuModel = document.getElementById(\`groupHaikuModel\${groupId}\`).value.trim();
+                const subagentModel = document.getElementById(\`groupSubagentModel\${groupId}\`).value.trim();
+                const anthropicModel = document.getElementById(\`groupAnthropicModel\${groupId}\`).value.trim();
+
+                if (defaultModel) groupConfig.DEFAULT_MODEL = defaultModel;
+                if (opusModel) groupConfig.ANTHROPIC_DEFAULT_OPUS_MODEL = opusModel;
+                if (sonnetModel) groupConfig.ANTHROPIC_DEFAULT_SONNET_MODEL = sonnetModel;
+                if (haikuModel) groupConfig.ANTHROPIC_DEFAULT_HAIKU_MODEL = haikuModel;
+                if (subagentModel) groupConfig.CLAUDE_CODE_SUBAGENT_MODEL = subagentModel;
+                if (anthropicModel) groupConfig.ANTHROPIC_MODEL = anthropicModel;
+
+                accountData.modelGroups[groupName] = groupConfig;
+
+                // Check if this is the active group
+                if (activeModelGroup === groupId) {
+                    accountData.activeModelGroup = groupName;
+                }
+            });
+
+            if (Object.keys(accountData.modelGroups).length === 0) {
+                delete accountData.modelGroups;
+                delete accountData.activeModelGroup;
             }
 
             try {

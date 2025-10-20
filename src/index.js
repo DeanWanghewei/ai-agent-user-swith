@@ -12,7 +12,12 @@ const {
   showPaths,
   exportAccount,
   doctor,
-  startUI
+  startUI,
+  listModelGroups,
+  addModelGroup,
+  useModelGroup,
+  removeModelGroup,
+  showModelGroup
 } = require('./commands');
 
 // Package info
@@ -84,6 +89,38 @@ program
   .command('ui')
   .description('Start web-based account manager UI')
   .action(startUI);
+
+// Model management commands
+const modelCommand = program
+  .command('model')
+  .description('Manage model groups for current project account');
+
+modelCommand
+  .command('list')
+  .alias('ls')
+  .description('List all model groups for current account')
+  .action(listModelGroups);
+
+modelCommand
+  .command('add [name]')
+  .description('Add a new model group')
+  .action(addModelGroup);
+
+modelCommand
+  .command('use <name>')
+  .description('Switch to a different model group')
+  .action(useModelGroup);
+
+modelCommand
+  .command('remove [name]')
+  .alias('rm')
+  .description('Remove a model group')
+  .action(removeModelGroup);
+
+modelCommand
+  .command('show [name]')
+  .description('Show model group configuration')
+  .action(showModelGroup);
 
 // Help command
 program
