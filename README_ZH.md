@@ -280,6 +280,7 @@ ais use
 ```
 
 **注意**：此命令会自动生成 `.claude/settings.local.json` 文件用于 Claude Code CLI 集成。
+如果检测到当前项目是 Git 仓库，还会自动将配置文件添加到 `.gitignore` 中，避免将敏感信息提交到版本控制。
 你可以在项目的任何子目录中运行此命令 - 它会自动找到项目根目录。
 
 #### 4. 查看当前项目信息
@@ -509,7 +510,10 @@ ais use correct-account
 
 - API 密钥仅存储在本地机器上
 - 全局配置文件包含敏感凭证
-- 始终将 `.ais-project-config` 添加到 `.gitignore`
+- `ais use` 命令会自动将配置文件添加到 `.gitignore` (如果项目是 Git 仓库)
+- 始终验证 `.gitignore` 包含以下文件：
+  - `.ais-project-config`
+  - `.claude/settings.local.json`
 - 切勿将账户凭证提交到版本控制
 - 显示 API 密钥时会进行掩码处理（仅显示前 4 位和后 4 位字符）
 

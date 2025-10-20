@@ -145,6 +145,78 @@ class ConfigManager {
     // Generate Claude Code project-level configuration
     this.generateClaudeConfig(account, projectRoot);
 
+    // Add to .gitignore if git is initialized
+    this.addToGitignore(projectRoot);
+
+    return true;
+  }
+
+  /**
+   * Add AIS config files to .gitignore if git repository exists
+   */
+  addToGitignore(projectRoot = process.cwd()) {
+    const gitDir = path.join(projectRoot, '.git');
+    const gitignorePath = path.join(projectRoot, '.gitignore');
+
+    // Check if this is a git repository
+    if (!fs.existsSync(gitDir)) {
+      return false;
+    }
+
+    // Files to add to .gitignore
+    const filesToIgnore = [
+      this.projectConfigFilename,
+      '.claude/settings.local.json'
+    ];
+
+    let gitignoreContent = '';
+    let needsUpdate = false;
+
+    // Read existing .gitignore if it exists
+    if (fs.existsSync(gitignorePath)) {
+      gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
+    }
+
+    // Split into lines for easier processing
+    const lines = gitignoreContent.split('\n');
+    const existingEntries = new Set(lines.map(line => line.trim()));
+
+    // Check which files need to be added
+    const entriesToAdd = [];
+    for (const file of filesToIgnore) {
+      if (!existingEntries.has(file)) {
+        entriesToAdd.push(file);
+        needsUpdate = true;
+      }
+    }
+
+    if (!needsUpdate) {
+      return false;
+    }
+
+    // Add AIS section header if adding new entries
+    let newContent = gitignoreContent;
+
+    // Ensure file ends with newline if it has content
+    if (newContent.length > 0 && !newContent.endsWith('\n')) {
+      newContent += '\n';
+    }
+
+    // Add section header and entries
+    if (entriesToAdd.length > 0) {
+      // Add blank line before section if file has content
+      if (newContent.length > 0) {
+        newContent += '\n';
+      }
+
+      newContent += '# AIS (AI Account Switch) - Local configuration files\n';
+      entriesToAdd.forEach(entry => {
+        newContent += entry + '\n';
+      });
+    }
+
+    // Write updated .gitignore
+    fs.writeFileSync(gitignorePath, newContent, 'utf8');
     return true;
   }
 

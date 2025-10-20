@@ -246,9 +246,19 @@ async function useAccount(name) {
 
   const success = config.setProjectAccount(name);
   if (success) {
+    const fs = require('fs');
+    const path = require('path');
+
     console.log(chalk.green(`✓ Switched to account '${name}' for current project.`));
     console.log(chalk.yellow(`Project: ${process.cwd()}`));
     console.log(chalk.cyan(`✓ Claude configuration generated at: .claude/settings.local.json`));
+
+    // Check if .gitignore was updated
+    const gitignorePath = path.join(process.cwd(), '.gitignore');
+    const gitDir = path.join(process.cwd(), '.git');
+    if (fs.existsSync(gitDir) && fs.existsSync(gitignorePath)) {
+      console.log(chalk.cyan(`✓ Updated .gitignore to exclude AIS configuration files`));
+    }
   } else {
     console.log(chalk.red('✗ Failed to set account.'));
   }

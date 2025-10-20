@@ -24,6 +24,7 @@ yarn-error.log*
 
 # Project config (contains sensitive account info)
 .ais-project-config
+.claude/settings.local.json
 
 # IDE
 .vscode/
