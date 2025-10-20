@@ -734,7 +734,7 @@ class UIServer {
             <form id="accountForm" onsubmit="saveAccount(event)">
                 <div class="form-group">
                     <label for="accountName" data-i18n="accountName">账号名称 *</label>
-                    <input type="text" id="accountName" required>
+                    <input type="text" id="accountName" required data-i18n-placeholder="accountNamePlaceholder" placeholder="例如: my-claude-account">
                 </div>
                 <div class="form-group">
                     <label for="accountType" data-i18n="type">类型 *</label>
@@ -746,19 +746,19 @@ class UIServer {
                 </div>
                 <div class="form-group">
                     <label for="apiKey" data-i18n="apiKey">API Key *</label>
-                    <input type="text" id="apiKey" required>
+                    <input type="text" id="apiKey" required data-i18n-placeholder="apiKeyPlaceholder" placeholder="sk-ant-api03-...">
                 </div>
                 <div class="form-group">
                     <label for="apiUrl" data-i18n="apiUrl">API URL (可选)</label>
-                    <input type="text" id="apiUrl">
+                    <input type="text" id="apiUrl" data-i18n-placeholder="apiUrlPlaceholder" placeholder="https://api.anthropic.com">
                 </div>
                 <div class="form-group">
                     <label for="email" data-i18n="email">邮箱 (可选)</label>
-                    <input type="email" id="email">
+                    <input type="email" id="email" data-i18n-placeholder="emailPlaceholder" placeholder="user@example.com">
                 </div>
                 <div class="form-group">
                     <label for="description" data-i18n="description">描述 (可选)</label>
-                    <textarea id="description"></textarea>
+                    <textarea id="description" data-i18n-placeholder="descriptionPlaceholder" placeholder="用于生产环境的主账号"></textarea>
                 </div>
                 <div class="form-group">
                     <label data-i18n="customEnv">自定义环境变量 (可选)</label>
@@ -789,12 +789,17 @@ class UIServer {
                 addAccountTitle: '添加账号',
                 editAccountTitle: '编辑账号',
                 accountName: '账号名称 *',
+                accountNamePlaceholder: '例如: my-claude-account',
                 type: '类型 *',
                 other: '其他',
                 apiKey: 'API Key *',
+                apiKeyPlaceholder: 'sk-ant-api03-...',
                 apiUrl: 'API URL (可选)',
+                apiUrlPlaceholder: 'https://api.anthropic.com',
                 email: '邮箱 (可选)',
+                emailPlaceholder: 'user@example.com',
                 description: '描述 (可选)',
+                descriptionPlaceholder: '用于生产环境的主账号',
                 customEnv: '自定义环境变量 (可选)',
                 addVariable: '+ 添加变量',
                 save: '保存',
@@ -829,12 +834,17 @@ class UIServer {
                 addAccountTitle: 'Add Account',
                 editAccountTitle: 'Edit Account',
                 accountName: 'Account Name *',
+                accountNamePlaceholder: 'e.g., my-claude-account',
                 type: 'Type *',
                 other: 'Other',
                 apiKey: 'API Key *',
+                apiKeyPlaceholder: 'sk-ant-api03-...',
                 apiUrl: 'API URL (optional)',
+                apiUrlPlaceholder: 'https://api.anthropic.com',
                 email: 'Email (optional)',
+                emailPlaceholder: 'user@example.com',
                 description: 'Description (optional)',
+                descriptionPlaceholder: 'Main account for production environment',
                 customEnv: 'Custom Environment Variables (optional)',
                 addVariable: '+ Add Variable',
                 save: 'Save',
