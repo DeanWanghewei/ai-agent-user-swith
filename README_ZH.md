@@ -25,7 +25,7 @@
 
 ## 安装
 
-### 方式 1：全局 npm 安装（推荐）
+### npm 安装（推荐）
 
 ```bash
 npm install -g ai-account-switch
@@ -33,7 +33,7 @@ npm install -g ai-account-switch
 
 安装后，`ais` 命令将在全局可用。
 
-**注意**：如果安装后提示"命令未找到"，可能需要将 npm 的全局 bin 目录添加到 PATH：
+**故障排除**：如果安装后提示"命令未找到"：
 
 ```bash
 # 查看 npm 全局 bin 路径
@@ -45,153 +45,7 @@ export PATH="$PATH:$(npm config get prefix)/bin"
 # Windows 上，添加到系统 PATH：%APPDATA%\npm
 ```
 
-### 方式 2：下载预编译二进制文件
-
-从 [Releases 页面](https://github.com/yourusername/ai-agent-user-swith/releases) 下载适合你平台的最新版本：
-
-**Windows（自动安装 - 推荐）：**
-
-使用自动安装程序，它会下载最新版本并自动添加到 PATH：
-
-**方法 1：PowerShell（推荐）**
-```powershell
-# 在 PowerShell 中运行（建议使用管理员权限进行系统级安装）
-irm https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/install.ps1 | iex
-```
-
-**方法 2：下载并运行安装脚本**
-1. 从 [Releases 页面](https://github.com/yourusername/ai-agent-user-swith/releases) 下载 `install.ps1` 或 `install.bat`
-2. 右键点击 `install.ps1` 并选择"使用 PowerShell 运行"
-   - 或双击运行 `install.bat`
-
-安装程序将：
-- 下载最新的 `ais-win.exe`
-- 安装到 `%LOCALAPPDATA%\ais`（用户安装）或 `C:\Program Files\ais`（系统安装）
-- 自动添加到 PATH
-- 验证安装
-
-安装完成后，打开**新的终端**并验证：
-```cmd
-ais --version
-```
-
-**Windows（手动安装）：**
-
-如果你更喜欢手动安装：
-
-1. 从 [Releases 页面](https://github.com/yourusername/ai-agent-user-swith/releases) 下载 `ais-win.exe`
-
-2. 选择安装位置（推荐：`C:\Program Files\ais\`）
-   ```cmd
-   mkdir "C:\Program Files\ais"
-   ```
-
-3. 将下载的文件移动到安装目录并重命名：
-   ```cmd
-   move "%USERPROFILE%\Downloads\ais-win.exe" "C:\Program Files\ais\ais.exe"
-   ```
-
-4. 添加到 PATH：
-
-   **方法 1：使用系统设置（推荐）**
-   - 打开开始菜单，搜索"环境变量"
-   - 点击"编辑系统环境变量"
-   - 点击"环境变量..."按钮
-   - 在"系统变量"（或"用户变量"，仅对当前用户有效）下，找到并选择"Path"
-   - 点击"编辑..."
-   - 点击"新建"
-   - 添加 `C:\Program Files\ais`
-   - 在所有对话框上点击"确定"
-   - **重启终端**使更改生效
-
-   **方法 2：使用 PowerShell（管理员权限）**
-   ```powershell
-   # 添加到用户 PATH
-   [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Program Files\ais", "User")
-
-   # 或添加到系统 PATH（需要管理员权限）
-   [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Program Files\ais", "Machine")
-   ```
-
-   **方法 3：使用命令提示符（管理员权限）**
-   ```cmd
-   setx PATH "%PATH%;C:\Program Files\ais"
-   ```
-
-5. 验证安装：
-   ```cmd
-   # 打开新的终端窗口
-   ais --version
-   ```
-
-**注意**：如果你希望安装到用户目录而不需要管理员权限，可以使用 `%LOCALAPPDATA%\ais`：
-```cmd
-mkdir "%LOCALAPPDATA%\ais"
-move "%USERPROFILE%\Downloads\ais-win.exe" "%LOCALAPPDATA%\ais\ais.exe"
-# 然后将 %LOCALAPPDATA%\ais 添加到你的用户 PATH
-```
-
-**macOS：**
-
-1. 下载并安装到 `/usr/local/bin`：
-   ```bash
-   curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-macos -o /usr/local/bin/ais
-   chmod +x /usr/local/bin/ais
-   ```
-
-2. 如果你没有 `/usr/local/bin` 的写入权限，使用 sudo：
-   ```bash
-   sudo curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-macos -o /usr/local/bin/ais
-   sudo chmod +x /usr/local/bin/ais
-   ```
-
-3. 或者，安装到用户目录（无需 sudo）：
-   ```bash
-   mkdir -p ~/.local/bin
-   curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-macos -o ~/.local/bin/ais
-   chmod +x ~/.local/bin/ais
-
-   # 如果还未添加到 PATH，请添加
-   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-   source ~/.zshrc
-   ```
-
-4. 验证安装：
-   ```bash
-   ais --version
-   ```
-
-**Linux：**
-
-1. 下载并安装到 `/usr/local/bin`：
-   ```bash
-   curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-linux -o /usr/local/bin/ais
-   chmod +x /usr/local/bin/ais
-   ```
-
-2. 如果你没有 `/usr/local/bin` 的写入权限，使用 sudo：
-   ```bash
-   sudo curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-linux -o /usr/local/bin/ais
-   sudo chmod +x /usr/local/bin/ais
-   ```
-
-3. 或者，安装到用户目录（无需 sudo）：
-   ```bash
-   mkdir -p ~/.local/bin
-   curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-linux -o ~/.local/bin/ais
-   chmod +x ~/.local/bin/ais
-
-   # 如果还未添加到 PATH，请添加
-   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-   source ~/.bashrc
-   ```
-
-4. 验证安装：
-   ```bash
-   ais --version
-   ```
-
-### 方式 3：从源码安装
+### 从源码安装
 
 ```bash
 # 克隆仓库

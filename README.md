@@ -17,7 +17,7 @@ A cross-platform CLI tool to manage and switch between Claude/Codex account conf
 
 ## Installation
 
-### Option 1: Global npm Installation (Recommended)
+### npm Installation (Recommended)
 
 ```bash
 npm install -g ai-account-switch
@@ -25,7 +25,7 @@ npm install -g ai-account-switch
 
 After installation, the `ais` command will be available globally.
 
-**Note**: If you encounter "command not found" after installation, you may need to add npm's global bin directory to your PATH:
+**Troubleshooting**: If you encounter "command not found" after installation:
 
 ```bash
 # Check npm global bin path
@@ -37,153 +37,7 @@ export PATH="$PATH:$(npm config get prefix)/bin"
 # On Windows, add to system PATH: %APPDATA%\npm
 ```
 
-### Option 2: Download Pre-built Binary
-
-Download the latest release for your platform from the [Releases page](https://github.com/yourusername/ai-agent-user-swith/releases):
-
-**Windows (Automatic Installation - Recommended):**
-
-Use the automated installer that downloads the latest version and adds it to PATH automatically:
-
-**Method 1: PowerShell (Recommended)**
-```powershell
-# Run in PowerShell (Administrator recommended for system-wide install)
-irm https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/install.ps1 | iex
-```
-
-**Method 2: Download and Run Installer Script**
-1. Download `install.ps1` or `install.bat` from the [Releases page](https://github.com/yourusername/ai-agent-user-swith/releases)
-2. Right-click on `install.ps1` and select "Run with PowerShell"
-   - Or run `install.bat` by double-clicking it
-
-The installer will:
-- Download the latest `ais-win.exe`
-- Install to `%LOCALAPPDATA%\ais` (user install) or `C:\Program Files\ais` (system install)
-- Automatically add to PATH
-- Verify the installation
-
-After installation, open a **new terminal** and verify:
-```cmd
-ais --version
-```
-
-**Windows (Manual Installation):**
-
-If you prefer manual installation:
-
-1. Download `ais-win.exe` from the [Releases page](https://github.com/yourusername/ai-agent-user-swith/releases)
-
-2. Choose an installation location (recommended: `C:\Program Files\ais\`)
-   ```cmd
-   mkdir "C:\Program Files\ais"
-   ```
-
-3. Move the downloaded file to the installation directory and rename it:
-   ```cmd
-   move "%USERPROFILE%\Downloads\ais-win.exe" "C:\Program Files\ais\ais.exe"
-   ```
-
-4. Add to PATH:
-
-   **Method 1: Using System Settings (Recommended)**
-   - Open Start Menu and search for "Environment Variables"
-   - Click "Edit the system environment variables"
-   - Click "Environment Variables..." button
-   - Under "System variables" (or "User variables" for current user only), find and select "Path"
-   - Click "Edit..."
-   - Click "New"
-   - Add `C:\Program Files\ais`
-   - Click "OK" on all dialogs
-   - **Restart your terminal** for changes to take effect
-
-   **Method 2: Using PowerShell (Administrator)**
-   ```powershell
-   # Add to User PATH
-   [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Program Files\ais", "User")
-
-   # Or add to System PATH (requires admin)
-   [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Program Files\ais", "Machine")
-   ```
-
-   **Method 3: Using Command Prompt (Administrator)**
-   ```cmd
-   setx PATH "%PATH%;C:\Program Files\ais"
-   ```
-
-5. Verify installation:
-   ```cmd
-   # Open a NEW terminal window
-   ais --version
-   ```
-
-**Note**: If you prefer a user-local installation without admin rights, use `%LOCALAPPDATA%\ais` instead:
-```cmd
-mkdir "%LOCALAPPDATA%\ais"
-move "%USERPROFILE%\Downloads\ais-win.exe" "%LOCALAPPDATA%\ais\ais.exe"
-# Then add %LOCALAPPDATA%\ais to your User PATH
-```
-
-**macOS:**
-
-1. Download and install to `/usr/local/bin`:
-   ```bash
-   curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-macos -o /usr/local/bin/ais
-   chmod +x /usr/local/bin/ais
-   ```
-
-2. If you don't have write permissions for `/usr/local/bin`, use sudo:
-   ```bash
-   sudo curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-macos -o /usr/local/bin/ais
-   sudo chmod +x /usr/local/bin/ais
-   ```
-
-3. Alternatively, install to your user directory (no sudo required):
-   ```bash
-   mkdir -p ~/.local/bin
-   curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-macos -o ~/.local/bin/ais
-   chmod +x ~/.local/bin/ais
-
-   # Add to PATH if not already there
-   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-   source ~/.zshrc
-   ```
-
-4. Verify installation:
-   ```bash
-   ais --version
-   ```
-
-**Linux:**
-
-1. Download and install to `/usr/local/bin`:
-   ```bash
-   curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-linux -o /usr/local/bin/ais
-   chmod +x /usr/local/bin/ais
-   ```
-
-2. If you don't have write permissions for `/usr/local/bin`, use sudo:
-   ```bash
-   sudo curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-linux -o /usr/local/bin/ais
-   sudo chmod +x /usr/local/bin/ais
-   ```
-
-3. Alternatively, install to your user directory (no sudo required):
-   ```bash
-   mkdir -p ~/.local/bin
-   curl -L https://github.com/yourusername/ai-agent-user-swith/releases/latest/download/ais-linux -o ~/.local/bin/ais
-   chmod +x ~/.local/bin/ais
-
-   # Add to PATH if not already there
-   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-   source ~/.bashrc
-   ```
-
-4. Verify installation:
-   ```bash
-   ais --version
-   ```
-
-### Option 3: Install from Source
+### Install from Source
 
 ```bash
 # Clone the repository

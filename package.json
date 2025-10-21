@@ -8,11 +8,7 @@
   },
   "scripts": {
     "test": "node src/index.js",
-    "link": "npm link",
-    "build": "pkg . --targets node18-linux-x64,node18-macos-x64,node18-win-x64 --output dist/ais",
-    "build:win": "pkg . --targets node18-win-x64 --output dist/ais-win.exe",
-    "build:installer": "iscc installer\\windows\\ais-setup.iss",
-    "build:win-installer": "npm run build:win && npm run build:installer"
+    "link": "npm link"
   },
   "keywords": [
     "cli",
