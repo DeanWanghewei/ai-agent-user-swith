@@ -420,6 +420,118 @@ ais export my-claude-account
 
 这确保 Claude Code CLI 自动使用项目的正确账户。
 
+### Codex 集成
+
+当你添加 **Codex** 类型账户并运行 `ais use` 时，工具会自动在 `~/.codex/config.toml` 中创建 profile，并在项目目录中创建 `.codex-profile` 文件。
+
+#### 添加 Codex 账户
+
+添加 Codex 账户时，你会看到有用的配置提示：
+
+```bash
+ais add my-codex-account
+
+? Select account type: Codex
+
+📝 Codex Configuration Tips:
+   • API URL should include the full path (e.g., https://api.example.com/v1)
+   • AIS will automatically add /v1 if missing
+   • Codex uses OpenAI-compatible API format
+
+? Enter API Key: sk-xxx...
+? Enter API URL (e.g., https://api.example.com or https://api.example.com/v1): https://zone.veloera.org
+```
+
+**重要说明：**
+- AIS 会自动为 API URL 添加 `/v1` 路径（如果缺少）
+- 配置使用 `wire_api = "chat"`（OpenAI 兼容格式）
+- 这可以防止常见的 Cloudflare 400 错误
+
+#### 在项目中使用 Codex
+
+使用 Codex 账户运行 `ais use` 后：
+
+```bash
+cd ~/my-project
+ais use my-codex-account
+
+# 输出：
+# ✓ Switched to account 'my-codex-account' for current project.
+# ✓ Codex profile created: ais_my-project
+#   Use: codex --profile ais_my-project [prompt]
+```
+
+工具会创建：
+1. **全局 Profile**：`~/.codex/config.toml` 包含你的账户配置
+2. **项目引用**：`.codex-profile` 包含 profile 名称
+
+#### 运行 Codex
+
+使用生成的 profile 运行 Codex：
+
+```bash
+# 在项目目录中
+codex --profile ais_my-project "your prompt here"
+
+# 或使用 .codex-profile 中的 profile 名称
+codex --profile $(cat .codex-profile) "your prompt"
+```
+
+#### Codex 配置结构
+
+在 `~/.codex/config.toml` 中生成的配置：
+
+```toml
+# AIS Profile for project: /path/to/your/project
+[profiles.ais_my-project]
+model_provider = "ais_my-codex-account"
+
+[model_providers.ais_my-codex-account]
+name = "ais_my-codex-account"
+base_url = "https://zone.veloera.org/v1"
+wire_api = "chat"
+http_headers = { "Authorization" = "Bearer sk-xxx..." }
+```
+
+#### 在不同项目间切换
+
+每个项目可以使用不同的 Codex 账户：
+
+```bash
+# 项目 A
+cd ~/project-a
+ais use codex-account-1
+codex --profile ais_project-a "implement feature X"
+
+# 项目 B
+cd ~/project-b
+ais use codex-account-2
+codex --profile ais_project-b "fix bug Y"
+```
+
+#### Codex 故障排除
+
+**错误："duplicate key" in TOML**
+- 这是因为 profile 没有正确清理
+- 解决方案：再次运行 `ais use <account>` 重新生成配置
+
+**错误："400 Bad Request" from Cloudflare**
+- 这通常意味着 API URL 不正确
+- 解决方案：确保 API URL 包含 `/v1` 或让 AIS 自动添加
+- 运行 `ais use <account>` 使用正确的配置重新生成
+
+**检查 Codex 配置**
+```bash
+# 查看你的 Codex profile
+cat .codex-profile
+
+# 检查配置
+grep -A 10 "$(cat .codex-profile)" ~/.codex/config.toml
+
+# 或使用 doctor 命令
+ais doctor
+```
+
 #### 自定义环境变量
 
 在创建账户时可以添加自定义环境变量。在提示时，使用 `KEY=VALUE` 格式输入：
@@ -629,6 +741,28 @@ ais current  # 应该显示你的账户
 MIT License - 欢迎在你的项目中使用此工具！
 
 ## 更新日志
+
+### v1.5.1
+- **Codex 集成增强**：
+  - 完整支持 Codex CLI 的 profile 配置
+  - 自动为 Codex 账户生成 `~/.codex/config.toml` profiles
+  - 项目级 `.codex-profile` 文件方便引用 profile
+  - 智能 API URL 处理：自动添加 `/v1` 路径（如果缺少）
+  - 使用 OpenAI 兼容的 `wire_api = "chat"` 格式
+  - 通过正确配置防止 Cloudflare 400 错误
+- **用户体验改进**：
+  - 添加 Codex 账户时显示配置提示
+  - 账户创建后显示使用说明
+  - 增强 `ais doctor` 命令，支持 Codex 配置检测
+  - 改进 TOML 文件中的重复 profile 清理
+- **Bug 修复**：
+  - 修复 Codex 配置中的重复 profile key 错误
+  - 改进 profile 删除的正则表达式模式
+  - 分离 Claude 和 Codex 配置生成逻辑
+- **文档更新**：
+  - README 中添加全面的 Codex 集成指南
+  - 常见 Codex 问题的故障排除部分
+  - 多项目 Codex 使用示例
 
 ### v1.5.0
 - **模型组管理系统**：

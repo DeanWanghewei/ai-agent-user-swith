@@ -365,6 +365,118 @@ When you run `ais use`, the tool automatically creates `.claude/settings.local.j
 
 This ensures Claude Code CLI automatically uses the correct account for your project.
 
+### Codex Integration
+
+When you add a **Codex** type account and run `ais use`, the tool automatically creates a profile in `~/.codex/config.toml` and a `.codex-profile` file in your project directory.
+
+#### Adding a Codex Account
+
+When adding a Codex account, you'll see helpful configuration tips:
+
+```bash
+ais add my-codex-account
+
+? Select account type: Codex
+
+📝 Codex Configuration Tips:
+   • API URL should include the full path (e.g., https://api.example.com/v1)
+   • AIS will automatically add /v1 if missing
+   • Codex uses OpenAI-compatible API format
+
+? Enter API Key: sk-xxx...
+? Enter API URL (e.g., https://api.example.com or https://api.example.com/v1): https://zone.veloera.org
+```
+
+**Important Notes:**
+- AIS automatically adds `/v1` to the API URL if it's missing
+- The configuration uses `wire_api = "chat"` (OpenAI-compatible format)
+- This prevents common issues like Cloudflare 400 errors
+
+#### Using Codex with Your Project
+
+After running `ais use` with a Codex account:
+
+```bash
+cd ~/my-project
+ais use my-codex-account
+
+# Output:
+# ✓ Switched to account 'my-codex-account' for current project.
+# ✓ Codex profile created: ais_my-project
+#   Use: codex --profile ais_my-project [prompt]
+```
+
+The tool creates:
+1. **Global Profile**: `~/.codex/config.toml` with your account configuration
+2. **Project Reference**: `.codex-profile` containing the profile name
+
+#### Running Codex
+
+Use Codex with the generated profile:
+
+```bash
+# In your project directory
+codex --profile ais_my-project "your prompt here"
+
+# Or use the profile name from .codex-profile
+codex --profile $(cat .codex-profile) "your prompt"
+```
+
+#### Codex Configuration Structure
+
+The generated configuration in `~/.codex/config.toml`:
+
+```toml
+# AIS Profile for project: /path/to/your/project
+[profiles.ais_my-project]
+model_provider = "ais_my-codex-account"
+
+[model_providers.ais_my-codex-account]
+name = "ais_my-codex-account"
+base_url = "https://zone.veloera.org/v1"
+wire_api = "chat"
+http_headers = { "Authorization" = "Bearer sk-xxx..." }
+```
+
+#### Switching Between Projects
+
+Each project can use a different Codex account:
+
+```bash
+# Project A
+cd ~/project-a
+ais use codex-account-1
+codex --profile ais_project-a "implement feature X"
+
+# Project B
+cd ~/project-b
+ais use codex-account-2
+codex --profile ais_project-b "fix bug Y"
+```
+
+#### Troubleshooting Codex
+
+**Error: "duplicate key" in TOML**
+- This happens if profiles weren't cleaned up properly
+- Solution: Run `ais use <account>` again to regenerate the configuration
+
+**Error: "400 Bad Request" from Cloudflare**
+- This usually means the API URL is incorrect
+- Solution: Make sure your API URL includes `/v1` or let AIS add it automatically
+- Run `ais use <account>` to regenerate with the correct configuration
+
+**Check Codex Configuration**
+```bash
+# View your Codex profile
+cat .codex-profile
+
+# Check the configuration
+grep -A 10 "$(cat .codex-profile)" ~/.codex/config.toml
+
+# Or use the doctor command
+ais doctor
+```
+
 #### Custom Environment Variables
 
 You can add custom environment variables when creating an account. When prompted, enter them in `KEY=VALUE` format:
@@ -552,6 +664,28 @@ Contributions are welcome! Feel free to:
 MIT License - feel free to use this tool in your projects!
 
 ## Changelog
+
+### v1.5.1
+- **Codex Integration Enhancements**:
+  - Added full support for Codex CLI with profile-based configuration
+  - Automatic generation of `~/.codex/config.toml` profiles for Codex accounts
+  - Project-level `.codex-profile` file for easy profile reference
+  - Smart API URL handling: automatically adds `/v1` path if missing
+  - Uses OpenAI-compatible `wire_api = "chat"` format
+  - Prevents Cloudflare 400 errors with correct configuration
+- **Improved User Experience**:
+  - Configuration tips displayed when adding Codex accounts
+  - Usage instructions shown after account creation
+  - Enhanced `ais doctor` command with Codex configuration detection
+  - Better duplicate profile cleanup in TOML files
+- **Bug Fixes**:
+  - Fixed duplicate profile key errors in Codex configuration
+  - Improved profile deletion regex patterns
+  - Separated Claude and Codex configuration generation logic
+- **Documentation**:
+  - Comprehensive Codex integration guide in README
+  - Troubleshooting section for common Codex issues
+  - Examples for multi-project Codex usage
 
 ### v1.5.0
 - **Model Groups Management System**:

@@ -38,4 +38,4 @@ package-lock.json
 yarn.lock
 
 # AIS (AI Account Switch) - Local configuration files
-.codex/config.toml
+.codex-profile

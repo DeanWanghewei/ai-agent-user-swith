@@ -38,15 +38,27 @@ async function addAccount(name, options) {
     }
   }
 
-  // Prompt for account details
-  const accountData = await inquirer.prompt([
+  // Prompt for account type first
+  const typeAnswer = await inquirer.prompt([
     {
       type: 'list',
       name: 'type',
       message: 'Select account type:',
       choices: ['Claude', 'Codex', 'Other'],
       default: 'Claude'
-    },
+    }
+  ]);
+
+  // Show configuration tips based on account type
+  if (typeAnswer.type === 'Codex') {
+    console.log(chalk.cyan('\n📝 Codex Configuration Tips:'));
+    console.log(chalk.gray('   • API URL should include the full path (e.g., https://api.example.com/v1)'));
+    console.log(chalk.gray('   • AIS will automatically add /v1 if missing'));
+    console.log(chalk.gray('   • Codex uses OpenAI-compatible API format\n'));
+  }
+
+  // Prompt for remaining account details
+  const accountData = await inquirer.prompt([
     {
       type: 'input',
       name: 'apiKey',
@@ -56,7 +68,9 @@ async function addAccount(name, options) {
     {
       type: 'input',
       name: 'apiUrl',
-      message: 'Enter API URL (optional):',
+      message: typeAnswer.type === 'Codex'
+        ? 'Enter API URL (e.g., https://api.example.com or https://api.example.com/v1):'
+        : 'Enter API URL (optional):',
       default: ''
     },
     {
@@ -78,6 +92,9 @@ async function addAccount(name, options) {
       default: false
     }
   ]);
+
+  // Merge type into accountData
+  accountData.type = typeAnswer.type;
 
   // Handle custom environment variables
   if (accountData.addCustomEnv) {
@@ -199,6 +216,22 @@ async function addAccount(name, options) {
     console.log(chalk.cyan(`✓ Active model group: ${accountData.activeModelGroup}\n`));
     console.log(chalk.gray('💡 Tip: Use "ais model add" to create more model groups'));
     console.log(chalk.gray('💡 Tip: Use "ais model list" to view all model groups\n'));
+  }
+
+  // Show usage instructions based on account type
+  if (accountData.type === 'Codex') {
+    console.log(chalk.bold.cyan('\n📖 Codex Usage Instructions:\n'));
+    console.log(chalk.gray('1. Switch to this account in your project:'));
+    console.log(chalk.cyan(`   ais use ${name}\n`));
+    console.log(chalk.gray('2. Use Codex with the generated profile:'));
+    console.log(chalk.cyan(`   codex --profile ais_<project-name> "your prompt"\n`));
+    console.log(chalk.gray('3. The profile name will be shown when you run "ais use"\n'));
+  } else if (accountData.type === 'Claude') {
+    console.log(chalk.bold.cyan('\n📖 Claude Usage Instructions:\n'));
+    console.log(chalk.gray('1. Switch to this account in your project:'));
+    console.log(chalk.cyan(`   ais use ${name}\n`));
+    console.log(chalk.gray('2. Start Claude Code in your project directory'));
+    console.log(chalk.gray('3. Claude Code will automatically use the project configuration\n'));
   }
 }
 
@@ -371,7 +404,12 @@ async function useAccount(name) {
 
     // Show different messages based on account type
     if (account && account.type === 'Codex') {
-      console.log(chalk.cyan(`✓ Codex configuration generated at: .codex/config.toml`));
+      const profileFile = path.join(process.cwd(), '.codex-profile');
+      if (fs.existsSync(profileFile)) {
+        const profileName = fs.readFileSync(profileFile, 'utf8').trim();
+        console.log(chalk.cyan(`✓ Codex profile created: ${profileName}`));
+        console.log(chalk.yellow(`  Use: codex --profile ${profileName} [prompt]`));
+      }
     } else {
       console.log(chalk.cyan(`✓ Claude configuration generated at: .claude/settings.local.json`));
     }
@@ -659,38 +697,55 @@ async function doctor() {
     console.log(chalk.yellow('   Run "ais use <account>" to generate it'));
   }
 
-  // Check Codex config
-  const codexDir = path.join(projectRoot, '.codex');
-  const codexConfigPath = path.join(codexDir, 'config.toml');
+  // Check Codex profile
+  const codexProfilePath = path.join(projectRoot, '.codex-profile');
+  const globalCodexConfig = path.join(os.homedir(), '.codex', 'config.toml');
 
   console.log(chalk.bold('\n5. Codex Configuration:'));
-  console.log(`   Expected location: ${codexConfigPath}`);
+  console.log(`   Profile file: ${codexProfilePath}`);
 
-  if (fs.existsSync(codexConfigPath)) {
-    console.log(chalk.green('   ✓ Codex config exists'));
-    try {
-      const codexConfig = fs.readFileSync(codexConfigPath, 'utf8');
+  if (fs.existsSync(codexProfilePath)) {
+    const profileName = fs.readFileSync(codexProfilePath, 'utf8').trim();
+    console.log(chalk.green(`   ✓ Codex profile exists: ${profileName}`));
+    console.log(chalk.cyan(`   Usage: codex --profile ${profileName} [prompt]`));
 
-      // Parse basic info from TOML
-      const modelProviderMatch = codexConfig.match(/model_provider\s*=\s*"([^"]+)"/);
-      const modelMatch = codexConfig.match(/^model\s*=\s*"([^"]+)"/m);
-      const baseUrlMatch = codexConfig.match(/base_url\s*=\s*"([^"]+)"/);
+    // Check if profile exists in global config
+    if (fs.existsSync(globalCodexConfig)) {
+      try {
+        const globalConfig = fs.readFileSync(globalCodexConfig, 'utf8');
+        const profilePattern = new RegExp(`\\[profiles\\.${profileName}\\]`);
 
-      if (modelProviderMatch) {
-        console.log(`   Model Provider: ${modelProviderMatch[1]}`);
+        if (profilePattern.test(globalConfig)) {
+          console.log(chalk.green(`   ✓ Profile configured in ~/.codex/config.toml`));
+
+          // Parse profile info
+          const providerMatch = globalConfig.match(new RegExp(`\\[profiles\\.${profileName}\\][\\s\\S]*?model_provider\\s*=\\s*"([^"]+)"`));
+          const modelMatch = globalConfig.match(new RegExp(`\\[profiles\\.${profileName}\\][\\s\\S]*?model\\s*=\\s*"([^"]+)"`));
+
+          if (providerMatch) {
+            console.log(`   Model Provider: ${providerMatch[1]}`);
+
+            // Find provider details
+            const providerName = providerMatch[1];
+            const baseUrlMatch = globalConfig.match(new RegExp(`\\[model_providers\\.${providerName}\\][\\s\\S]*?base_url\\s*=\\s*"([^"]+)"`));
+            if (baseUrlMatch) {
+              console.log(`   API URL: ${baseUrlMatch[1]}`);
+            }
+          }
+          if (modelMatch) {
+            console.log(`   Model: ${modelMatch[1]}`);
+          }
+        } else {
+          console.log(chalk.yellow(`   ⚠ Profile not found in global config`));
+          console.log(chalk.yellow(`   Run "ais use <account>" to regenerate it`));
+        }
+      } catch (e) {
+        console.log(chalk.red(`   ✗ Error reading global Codex config: ${e.message}`));
       }
-      if (modelMatch) {
-        console.log(`   Model: ${modelMatch[1]}`);
-      }
-      if (baseUrlMatch) {
-        console.log(`   API URL: ${baseUrlMatch[1]}`);
-      }
-    } catch (e) {
-      console.log(chalk.red(`   ✗ Error reading Codex config: ${e.message}`));
     }
   } else {
-    console.log(chalk.red('   ✗ Codex config not found'));
-    console.log(chalk.yellow('   Run "ais use <account>" to generate it'));
+    console.log(chalk.yellow('   ⚠ No Codex profile configured'));
+    console.log(chalk.yellow('   Run "ais use <codex-account>" to create one'));
   }
 
   // Check global Claude config
