@@ -1,6 +1,6 @@
 {
   "name": "ai-account-switch",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "description": "A cross-platform CLI tool to manage and switch Claude/Codex account configurations",
   "main": "src/index.js",
   "bin": {
