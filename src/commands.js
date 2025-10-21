@@ -364,10 +364,17 @@ async function useAccount(name) {
   if (success) {
     const fs = require('fs');
     const path = require('path');
+    const account = config.getAccount(name);
 
     console.log(chalk.green(`✓ Switched to account '${name}' for current project.`));
     console.log(chalk.yellow(`Project: ${process.cwd()}`));
-    console.log(chalk.cyan(`✓ Claude configuration generated at: .claude/settings.local.json`));
+
+    // Show different messages based on account type
+    if (account && account.type === 'Codex') {
+      console.log(chalk.cyan(`✓ Codex configuration generated at: .codex/config.toml`));
+    } else {
+      console.log(chalk.cyan(`✓ Claude configuration generated at: .claude/settings.local.json`));
+    }
 
     // Check if .gitignore was updated
     const gitignorePath = path.join(process.cwd(), '.gitignore');
@@ -544,9 +551,49 @@ function maskApiKey(apiKey) {
 }
 
 /**
+ * Validate account API availability
+ */
+async function validateAccount(apiKey, apiUrl) {
+  const https = require('https');
+  const http = require('http');
+
+  return new Promise((resolve) => {
+    const url = apiUrl || 'https://api.anthropic.com';
+    const urlObj = new URL(url);
+    const client = urlObj.protocol === 'https:' ? https : http;
+
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port,
+      path: '/v1/messages',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      timeout: 5000
+    };
+
+    const req = client.request(options, (res) => {
+      resolve({ valid: res.statusCode !== 401 && res.statusCode !== 403, statusCode: res.statusCode });
+    });
+
+    req.on('error', () => resolve({ valid: false, error: 'Network error' }));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve({ valid: false, error: 'Timeout' });
+    });
+
+    req.write(JSON.stringify({ model: 'claude-3-haiku-20240307', max_tokens: 1, messages: [{ role: 'user', content: 'test' }] }));
+    req.end();
+  });
+}
+
+/**
  * Diagnose Claude Code configuration issues
  */
-function doctor() {
+async function doctor() {
   const path = require('path');
   const fs = require('fs');
   const os = require('os');
@@ -612,9 +659,43 @@ function doctor() {
     console.log(chalk.yellow('   Run "ais use <account>" to generate it'));
   }
 
+  // Check Codex config
+  const codexDir = path.join(projectRoot, '.codex');
+  const codexConfigPath = path.join(codexDir, 'config.toml');
+
+  console.log(chalk.bold('\n5. Codex Configuration:'));
+  console.log(`   Expected location: ${codexConfigPath}`);
+
+  if (fs.existsSync(codexConfigPath)) {
+    console.log(chalk.green('   ✓ Codex config exists'));
+    try {
+      const codexConfig = fs.readFileSync(codexConfigPath, 'utf8');
+
+      // Parse basic info from TOML
+      const modelProviderMatch = codexConfig.match(/model_provider\s*=\s*"([^"]+)"/);
+      const modelMatch = codexConfig.match(/^model\s*=\s*"([^"]+)"/m);
+      const baseUrlMatch = codexConfig.match(/base_url\s*=\s*"([^"]+)"/);
+
+      if (modelProviderMatch) {
+        console.log(`   Model Provider: ${modelProviderMatch[1]}`);
+      }
+      if (modelMatch) {
+        console.log(`   Model: ${modelMatch[1]}`);
+      }
+      if (baseUrlMatch) {
+        console.log(`   API URL: ${baseUrlMatch[1]}`);
+      }
+    } catch (e) {
+      console.log(chalk.red(`   ✗ Error reading Codex config: ${e.message}`));
+    }
+  } else {
+    console.log(chalk.red('   ✗ Codex config not found'));
+    console.log(chalk.yellow('   Run "ais use <account>" to generate it'));
+  }
+
   // Check global Claude config
   const globalClaudeConfig = path.join(os.homedir(), '.claude', 'settings.json');
-  console.log(chalk.bold('\n5. Global Claude Configuration:'));
+  console.log(chalk.bold('\n6. Global Claude Configuration:'));
   console.log(`   Location: ${globalClaudeConfig}`);
 
   if (fs.existsSync(globalClaudeConfig)) {
@@ -636,8 +717,75 @@ function doctor() {
     console.log(chalk.green('   ✓ No global config (good - project config will be used)'));
   }
 
+  // Check current account availability
+  console.log(chalk.bold('\n7. Current Account Availability:'));
+  const projectAccount = config.getProjectAccount();
+
+  if (projectAccount && projectAccount.apiKey) {
+    console.log(`   Testing account: ${chalk.cyan(projectAccount.name)}`);
+    console.log(`   Account type: ${chalk.cyan(projectAccount.type)}`);
+
+    if (projectAccount.type === 'Claude') {
+      console.log('   Testing with Claude CLI...');
+      const { execSync } = require('child_process');
+      try {
+        execSync('claude --version', { stdio: 'pipe', timeout: 5000 });
+        console.log(chalk.green('   ✓ Claude CLI is available'));
+
+        // Interactive CLI test
+        console.log('   Running interactive test...');
+        try {
+          const testResult = execSync('echo "test" | claude', {
+            encoding: 'utf8',
+            timeout: 10000,
+            env: { ...process.env, ANTHROPIC_API_KEY: projectAccount.apiKey }
+          });
+          console.log(chalk.green('   ✓ Claude CLI interactive test passed'));
+        } catch (e) {
+          console.log(chalk.yellow('   ⚠ Claude CLI interactive test failed'));
+          console.log(chalk.gray(`   Error: ${e.message}`));
+        }
+      } catch (e) {
+        console.log(chalk.yellow('   ⚠ Claude CLI not found, using API validation'));
+      }
+    } else if (projectAccount.type === 'Codex') {
+      console.log('   Testing with Codex CLI...');
+      const { execSync } = require('child_process');
+      try {
+        execSync('codex --version', { stdio: 'pipe', timeout: 5000 });
+        console.log(chalk.green('   ✓ Codex CLI is available'));
+      } catch (e) {
+        console.log(chalk.yellow('   ⚠ Codex CLI not found'));
+      }
+    }
+
+    console.log(`   API URL: ${projectAccount.apiUrl || 'https://api.anthropic.com'}`);
+    console.log('   Validating API key...');
+
+    const result = await validateAccount(projectAccount.apiKey, projectAccount.apiUrl);
+
+    if (result.valid) {
+      console.log(chalk.green('   ✓ Account is valid and accessible'));
+      if (result.statusCode) {
+        console.log(chalk.gray(`   Response status: ${result.statusCode}`));
+      }
+    } else {
+      console.log(chalk.red('   ✗ Account validation failed'));
+      if (result.error) {
+        console.log(chalk.red(`   Error: ${result.error}`));
+      } else if (result.statusCode) {
+        console.log(chalk.red(`   Status code: ${result.statusCode}`));
+        if (result.statusCode === 401 || result.statusCode === 403) {
+          console.log(chalk.yellow('   ⚠ API key appears to be invalid or expired'));
+        }
+      }
+    }
+  } else {
+    console.log(chalk.yellow('   ⚠ No account configured or API key missing'));
+  }
+
   // Recommendations
-  console.log(chalk.bold('\n6. Recommendations:'));
+  console.log(chalk.bold('\n8. Recommendations:'));
 
   if (projectRoot && process.cwd() !== projectRoot) {
     console.log(chalk.yellow(`   ⚠ You are in a subdirectory (${path.relative(projectRoot, process.cwd())})`));
@@ -652,7 +800,7 @@ function doctor() {
     console.log(chalk.gray(`   • File: ${globalClaudeConfig}`));
   }
 
-  console.log(chalk.bold('\n7. Next Steps:'));
+  console.log(chalk.bold('\n9. Next Steps:'));
   console.log(chalk.cyan('   • Start Claude Code from your project directory or subdirectory'));
   console.log(chalk.cyan('   • Check which account Claude Code is using'));
   console.log(chalk.cyan('   • If wrong account is used, run: ais use <correct-account>'));
