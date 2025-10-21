@@ -51,8 +51,6 @@ npm install
 npm link
 ```
 
-**For Maintainers**: See [NPM_PUBLISH.md](NPM_PUBLISH.md) for publishing instructions.
-
 ## Usage
 
 ### Commands Overview

@@ -59,8 +59,6 @@ npm install
 npm link
 ```
 
-**维护者说明**：请查看 [NPM_PUBLISH.md](NPM_PUBLISH.md) 了解发布说明。
-
 ## 使用方法
 
 ### 命令概览
