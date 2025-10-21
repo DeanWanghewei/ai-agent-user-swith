@@ -30,23 +30,8 @@
     "chalk": "^4.1.2",
     "inquirer": "^8.2.5"
   },
-  "devDependencies": {
-    "pkg": "^5.8.1"
-  },
   "engines": {
     "node": ">=14.0.0"
-  },
-  "pkg": {
-    "scripts": [
-      "src/**/*.js"
-    ],
-    "assets": [],
-    "targets": [
-      "node18-linux-x64",
-      "node18-macos-x64",
-      "node18-win-x64"
-    ],
-    "outputPath": "dist"
   },
   "repository": {
     "type": "git",
