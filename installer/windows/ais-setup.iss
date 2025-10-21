@@ -2,7 +2,7 @@
 ; Inno Setup Script for creating Windows installer
 
 #define MyAppName "AI Account Switch"
-#define MyAppVersion "1.5.1"
+#define MyAppVersion "1.5.2"
 #define MyAppPublisher "AI Account Switch Team"
 #define MyAppURL "https://github.com/DeanWanghewei/ai-agent-user-swith"
 #define MyAppExeName "ais.exe"
@@ -22,7 +22,7 @@ AllowNoIcons=yes
 LicenseFile=..\..\LICENSE
 OutputDir=..\..\dist\installer
 OutputBaseFilename=ais-setup-{#MyAppVersion}
-SetupIconFile=ais-icon.ico
+; SetupIconFile=ais-icon.ico  ; Icon file not available yet
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
