@@ -146,6 +146,9 @@ class ConfigManager {
     if (account.type === 'Codex') {
       // Codex type accounts only need Codex configuration
       this.generateCodexConfig(account, projectRoot);
+    } else if (account.type === 'Droids') {
+      // Droids type accounts only need Droids configuration
+      this.generateDroidsConfig(account, projectRoot);
     } else {
       // Claude and other types need Claude Code configuration
       this.generateClaudeConfig(account, projectRoot);
@@ -173,7 +176,8 @@ class ConfigManager {
     const filesToIgnore = [
       this.projectConfigFilename,
       '.claude/settings.local.json',
-      '.codex-profile'
+      '.codex-profile',
+      '.droids/config.json'
     ];
 
     let gitignoreContent = '';
@@ -347,6 +351,42 @@ class ConfigManager {
   }
 
   /**
+   * Generate Droids configuration in .droids/config.json
+   */
+  generateDroidsConfig(account, projectRoot = process.cwd()) {
+    const droidsDir = path.join(projectRoot, '.droids');
+    const droidsConfigFile = path.join(droidsDir, 'config.json');
+
+    // Create .droids directory if it doesn't exist
+    if (!fs.existsSync(droidsDir)) {
+      fs.mkdirSync(droidsDir, { recursive: true });
+    }
+
+    // Build Droids configuration
+    const droidsConfig = {
+      apiKey: account.apiKey
+    };
+
+    // Add API URL if specified
+    if (account.apiUrl) {
+      droidsConfig.baseUrl = account.apiUrl;
+    }
+
+    // Add model configuration - Droids uses simple model field
+    if (account.model) {
+      droidsConfig.model = account.model;
+    }
+
+    // Add custom environment variables as customSettings
+    if (account.customEnv && typeof account.customEnv === 'object') {
+      droidsConfig.customSettings = account.customEnv;
+    }
+
+    // Write Droids configuration
+    fs.writeFileSync(droidsConfigFile, JSON.stringify(droidsConfig, null, 2), 'utf8');
+  }
+
+  /**
    * Generate Codex profile in global ~/.codex/config.toml
    */
   generateCodexConfig(account, projectRoot = process.cwd()) {
@@ -385,12 +425,9 @@ class ConfigManager {
 
       profileConfig += `model_provider = "${providerName}"\n`;
 
-      // Add model configuration from active model group if available
-      if (account.modelGroups && account.activeModelGroup) {
-        const activeGroup = account.modelGroups[account.activeModelGroup];
-        if (activeGroup && activeGroup.DEFAULT_MODEL) {
-          profileConfig += `model = "${activeGroup.DEFAULT_MODEL}"\n`;
-        }
+      // Add model configuration - Codex uses simple model field
+      if (account.model) {
+        profileConfig += `model = "${account.model}"\n`;
       }
 
       // Ensure API URL has proper path

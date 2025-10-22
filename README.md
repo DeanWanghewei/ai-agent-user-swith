@@ -2,7 +2,7 @@
 
 English | [简体中文](README_ZH.md)
 
-A cross-platform CLI tool to manage and switch between Claude/Codex account configurations for different projects.
+A cross-platform CLI tool to manage and switch between Claude/Codex/Droids account configurations for different projects.
 
 ## Features
 
@@ -13,7 +13,7 @@ A cross-platform CLI tool to manage and switch between Claude/Codex account conf
 - **Claude Code Integration**: Automatically generates `.claude/settings.local.json` for Claude Code CLI
 - **Secure Storage**: Account credentials stored locally in your home directory
 - **Interactive CLI**: Easy-to-use interactive prompts for all operations
-- **Account Types**: Support for Claude, Codex, and other AI services
+- **Account Types**: Support for Claude, Codex, Droids, and other AI services
 
 ## Installation
 
@@ -329,6 +329,108 @@ grep -A 10 "$(cat .codex-profile)" ~/.codex/config.toml
 ais doctor
 ```
 
+### Droids Integration
+
+When you add a **Droids** type account and run `ais use`, the tool automatically creates a configuration file at `.droids/config.json` in your project directory.
+
+#### Adding a Droids Account
+
+When adding a Droids account, you'll see helpful configuration tips:
+
+```bash
+ais add my-droids-account
+
+? Select account type: Droids
+
+📝 Droids Configuration Tips:
+   • Droids configuration will be stored in .droids/config.json
+   • API URL is optional (defaults to Droids default endpoint)
+   • You can configure custom models and settings
+
+? Enter API Key: sk-xxx...
+? Enter API URL (optional): https://api.example.com
+? Do you want to specify a model? (Optional) Yes
+? Enter model name: droids-model-v1
+```
+
+#### Using Droids with Your Project
+
+After running `ais use` with a Droids account:
+
+```bash
+cd ~/my-project
+ais use my-droids-account
+
+# Output:
+# ✓ Switched to account 'my-droids-account' for current project.
+# ✓ Droids configuration generated at: .droids/config.json
+#
+# 📖 Next Steps:
+#    Start interactive session: droid
+#    This will enter project-level interactive mode
+#    Droids will automatically use the configuration from .droids/config.json
+```
+
+The tool creates:
+- **Project Configuration**: `.droids/config.json` with your account settings
+
+#### Running Droids
+
+Start Droids interactive session:
+
+```bash
+# In your project directory
+droid
+
+# Droids will automatically load configuration from .droids/config.json
+```
+
+#### Droids Configuration Structure
+
+The generated configuration in `.droids/config.json`:
+
+```json
+{
+  "apiKey": "your-api-key",
+  "baseUrl": "https://api.example.com",
+  "model": "droids-model-v1",
+  "customSettings": {
+    "CUSTOM_VAR": "value"
+  }
+}
+```
+
+#### Switching Between Projects
+
+Each project can use a different Droids account:
+
+```bash
+# Project A
+cd ~/project-a
+ais use droids-account-1
+droid
+
+# Project B
+cd ~/project-b
+ais use droids-account-2
+droid
+```
+
+#### Troubleshooting Droids
+
+**Check Droids Configuration**
+```bash
+# View your Droids configuration
+cat .droids/config.json
+
+# Or use the doctor command
+ais doctor
+```
+
+**Droids CLI not found**
+- Make sure Droids CLI is installed and available in your PATH
+- Run `droid --version` to verify installation
+
 #### Custom Environment Variables
 
 You can add custom environment variables when creating an account. When prompted, enter them in `KEY=VALUE` format:
@@ -369,6 +471,9 @@ ais add work-claude
 
 # Add a Codex account
 ais add codex-dev
+
+# Add a Droids account
+ais add droids-dev
 
 # List all accounts
 ais list
@@ -516,6 +621,28 @@ Contributions are welcome! Feel free to:
 MIT License - feel free to use this tool in your projects!
 
 ## Changelog
+
+### v1.5.7
+- **Droids Integration**:
+  - Added full support for Droids AI assistant
+  - Automatic generation of `.droids/config.json` configuration
+  - Simple model configuration for Droids accounts
+  - Interactive session command: `droid`
+  - Enhanced `ais doctor` command with Droids configuration detection
+- **UI Enhancements**:
+  - Added type filter dropdown for quick account filtering
+  - Color-coded account cards by type (Claude: blue, Codex: purple, Droids: green, Other: orange)
+  - Left border color indicators on account cards
+  - Improved visual hierarchy and user experience
+- **Model Configuration Improvements**:
+  - Separated model configuration for different account types
+  - Claude: Complex model groups with multiple model settings
+  - Codex/Droids: Simple model field for straightforward configuration
+  - All model settings moved to collapsible "Advanced Configuration" section
+- **Better User Guidance**:
+  - Enhanced `ais use` command with clear next-step instructions
+  - Type-specific usage examples for each AI assistant
+  - Interactive mode prompts instead of one-time command examples
 
 ### v1.5.1
 - **Codex Integration Enhancements**:

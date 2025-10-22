@@ -44,7 +44,7 @@ async function addAccount(name, options) {
       type: 'list',
       name: 'type',
       message: 'Select account type:',
-      choices: ['Claude', 'Codex', 'Other'],
+      choices: ['Claude', 'Codex', 'Droids', 'Other'],
       default: 'Claude'
     }
   ]);
@@ -55,6 +55,11 @@ async function addAccount(name, options) {
     console.log(chalk.gray('   • API URL should include the full path (e.g., https://api.example.com/v1)'));
     console.log(chalk.gray('   • AIS will automatically add /v1 if missing'));
     console.log(chalk.gray('   • Codex uses OpenAI-compatible API format\n'));
+  } else if (typeAnswer.type === 'Droids') {
+    console.log(chalk.cyan('\n📝 Droids Configuration Tips:'));
+    console.log(chalk.gray('   • Droids configuration will be stored in .droids/config.json'));
+    console.log(chalk.gray('   • API URL is optional (defaults to Droids default endpoint)'));
+    console.log(chalk.gray('   • You can configure custom models and settings\n'));
   }
 
   // Prompt for remaining account details
@@ -183,28 +188,57 @@ async function addAccount(name, options) {
   // Remove the addCustomEnv flag before saving
   delete accountData.addCustomEnv;
 
-  // Initialize model groups structure
-  accountData.modelGroups = {};
-  accountData.activeModelGroup = null;
+  // Handle model configuration based on account type
+  if (accountData.type === 'Claude') {
+    // Claude uses complex model groups
+    accountData.modelGroups = {};
+    accountData.activeModelGroup = null;
 
-  // Prompt for model group configuration
-  const { createModelGroup } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'createModelGroup',
-      message: 'Do you want to create a model group? (Recommended)',
-      default: true
+    // Prompt for model group configuration
+    const { createModelGroup } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'createModelGroup',
+        message: 'Do you want to create a model group? (Recommended)',
+        default: true
+      }
+    ]);
+
+    if (createModelGroup) {
+      const groupName = 'default';
+      const modelGroupConfig = await promptForModelGroup();
+
+      if (Object.keys(modelGroupConfig).length > 0) {
+        accountData.modelGroups[groupName] = modelGroupConfig;
+        accountData.activeModelGroup = groupName;
+        console.log(chalk.green(`\n✓ Created model group '${groupName}'`));
+      }
     }
-  ]);
+  } else if (accountData.type === 'Codex' || accountData.type === 'Droids') {
+    // Codex and Droids use simple model field
+    const { addModel } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'addModel',
+        message: 'Do you want to specify a model? (Optional)',
+        default: false
+      }
+    ]);
 
-  if (createModelGroup) {
-    const groupName = 'default';
-    const modelGroupConfig = await promptForModelGroup();
+    if (addModel) {
+      const { model } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'model',
+          message: 'Enter model name:',
+          default: ''
+        }
+      ]);
 
-    if (Object.keys(modelGroupConfig).length > 0) {
-      accountData.modelGroups[groupName] = modelGroupConfig;
-      accountData.activeModelGroup = groupName;
-      console.log(chalk.green(`\n✓ Created model group '${groupName}'`));
+      if (model.trim()) {
+        accountData.model = model.trim();
+        console.log(chalk.green(`\n✓ Model set to: ${accountData.model}`));
+      }
     }
   }
 
@@ -212,10 +246,13 @@ async function addAccount(name, options) {
   config.addAccount(name, accountData);
   console.log(chalk.green(`✓ Account '${name}' added successfully!`));
 
-  if (accountData.activeModelGroup) {
+  // Show model configuration tips based on account type
+  if (accountData.type === 'Claude' && accountData.activeModelGroup) {
     console.log(chalk.cyan(`✓ Active model group: ${accountData.activeModelGroup}\n`));
     console.log(chalk.gray('💡 Tip: Use "ais model add" to create more model groups'));
     console.log(chalk.gray('💡 Tip: Use "ais model list" to view all model groups\n'));
+  } else if ((accountData.type === 'Codex' || accountData.type === 'Droids') && accountData.model) {
+    console.log(chalk.cyan(`✓ Model: ${accountData.model}\n`));
   }
 
   // Show usage instructions based on account type
@@ -232,6 +269,12 @@ async function addAccount(name, options) {
     console.log(chalk.cyan(`   ais use ${name}\n`));
     console.log(chalk.gray('2. Start Claude Code in your project directory'));
     console.log(chalk.gray('3. Claude Code will automatically use the project configuration\n'));
+  } else if (accountData.type === 'Droids') {
+    console.log(chalk.bold.cyan('\n📖 Droids Usage Instructions:\n'));
+    console.log(chalk.gray('1. Switch to this account in your project:'));
+    console.log(chalk.cyan(`   ais use ${name}\n`));
+    console.log(chalk.gray('2. Start Droids in your project directory'));
+    console.log(chalk.gray('3. Droids will automatically use the configuration from .droids/config.json\n'));
   }
 }
 
@@ -344,11 +387,13 @@ function listAccounts() {
     if (account.customEnv && Object.keys(account.customEnv).length > 0) {
       console.log(`   Custom Env: ${Object.keys(account.customEnv).join(', ')}`);
     }
-    // Display model groups
-    if (account.modelGroups && Object.keys(account.modelGroups).length > 0) {
+    // Display model configuration based on account type
+    if (account.type === 'Claude' && account.modelGroups && Object.keys(account.modelGroups).length > 0) {
       const groupNames = Object.keys(account.modelGroups);
       const activeMarker = account.activeModelGroup ? ` (active: ${account.activeModelGroup})` : '';
       console.log(`   Model Groups: ${groupNames.join(', ')}${activeMarker}`);
+    } else if ((account.type === 'Codex' || account.type === 'Droids') && account.model) {
+      console.log(`   Model: ${account.model}`);
     }
     console.log(`   Created: ${new Date(account.createdAt).toLocaleString()}`);
     console.log('');
@@ -408,16 +453,32 @@ async function useAccount(name) {
       if (fs.existsSync(profileFile)) {
         const profileName = fs.readFileSync(profileFile, 'utf8').trim();
         console.log(chalk.cyan(`✓ Codex profile created: ${profileName}`));
-        console.log(chalk.yellow(`  Use: codex --profile ${profileName} [prompt]`));
+        console.log('');
+        console.log(chalk.bold.cyan('📖 Next Steps:'));
+        console.log(chalk.yellow(`   Start interactive session: ${chalk.bold(`codex --profile ${profileName}`)}`));
+        console.log(chalk.gray('   This will enter project-level interactive mode'));
       }
+    } else if (account && account.type === 'Droids') {
+      console.log(chalk.cyan(`✓ Droids configuration generated at: .droids/config.json`));
+      console.log('');
+      console.log(chalk.bold.cyan('📖 Next Steps:'));
+      console.log(chalk.yellow(`   Start interactive session: ${chalk.bold('droid')}`));
+      console.log(chalk.gray('   This will enter project-level interactive mode'));
+      console.log(chalk.gray('   Droids will automatically use the configuration from .droids/config.json'));
     } else {
       console.log(chalk.cyan(`✓ Claude configuration generated at: .claude/settings.local.json`));
+      console.log('');
+      console.log(chalk.bold.cyan('📖 Next Steps:'));
+      console.log(chalk.yellow(`   Start interactive session: ${chalk.bold('claude')}`));
+      console.log(chalk.gray('   This will enter project-level interactive mode'));
+      console.log(chalk.gray('   Claude Code will automatically use the project configuration'));
     }
 
     // Check if .gitignore was updated
     const gitignorePath = path.join(process.cwd(), '.gitignore');
     const gitDir = path.join(process.cwd(), '.git');
     if (fs.existsSync(gitDir) && fs.existsSync(gitignorePath)) {
+      console.log('');
       console.log(chalk.cyan(`✓ Updated .gitignore to exclude AIS configuration files`));
     }
   } else {
@@ -451,8 +512,8 @@ function showInfo() {
       console.log(`  ${chalk.gray('•')} ${key}: ${value}`);
     });
   }
-  // Display model groups
-  if (projectAccount.modelGroups && Object.keys(projectAccount.modelGroups).length > 0) {
+  // Display model configuration based on account type
+  if (projectAccount.type === 'Claude' && projectAccount.modelGroups && Object.keys(projectAccount.modelGroups).length > 0) {
     console.log(`${chalk.cyan('Model Groups:')}`);
     Object.keys(projectAccount.modelGroups).forEach(groupName => {
       const isActive = projectAccount.activeModelGroup === groupName;
@@ -462,6 +523,8 @@ function showInfo() {
     if (projectAccount.activeModelGroup) {
       console.log(`${chalk.cyan('Active Model Group:')} ${chalk.green.bold(projectAccount.activeModelGroup)}`);
     }
+  } else if ((projectAccount.type === 'Codex' || projectAccount.type === 'Droids') && projectAccount.model) {
+    console.log(`${chalk.cyan('Model:')} ${projectAccount.model}`);
   }
   console.log(`${chalk.cyan('Set At:')} ${new Date(projectAccount.setAt).toLocaleString()}`);
   console.log(`${chalk.cyan('Project Root:')} ${projectAccount.projectRoot}`);
@@ -697,11 +760,47 @@ async function doctor() {
     console.log(chalk.yellow('   Run "ais use <account>" to generate it'));
   }
 
+  // Check Droids config
+  const droidsDir = path.join(projectRoot, '.droids');
+  const droidsConfigPath = path.join(droidsDir, 'config.json');
+
+  console.log(chalk.bold('\n5. Droids Configuration:'));
+  console.log(`   Expected location: ${droidsConfigPath}`);
+
+  if (fs.existsSync(droidsConfigPath)) {
+    console.log(chalk.green('   ✓ Droids config exists'));
+    try {
+      const droidsConfig = JSON.parse(fs.readFileSync(droidsConfigPath, 'utf8'));
+
+      if (droidsConfig.apiKey) {
+        const masked = droidsConfig.apiKey.substring(0, 6) + '****' + droidsConfig.apiKey.substring(droidsConfig.apiKey.length - 4);
+        console.log(`   API Key: ${masked}`);
+      }
+
+      if (droidsConfig.baseUrl) {
+        console.log(`   Base URL: ${droidsConfig.baseUrl}`);
+      }
+
+      if (droidsConfig.model) {
+        console.log(`   Model: ${droidsConfig.model}`);
+      }
+
+      if (droidsConfig.customSettings) {
+        console.log(`   Custom Settings: ${Object.keys(droidsConfig.customSettings).join(', ')}`);
+      }
+    } catch (e) {
+      console.log(chalk.red(`   ✗ Error reading Droids config: ${e.message}`));
+    }
+  } else {
+    console.log(chalk.yellow('   ⚠ Droids config not found'));
+    console.log(chalk.yellow('   Run "ais use <droids-account>" to generate it'));
+  }
+
   // Check Codex profile
   const codexProfilePath = path.join(projectRoot, '.codex-profile');
   const globalCodexConfig = path.join(os.homedir(), '.codex', 'config.toml');
 
-  console.log(chalk.bold('\n5. Codex Configuration:'));
+  console.log(chalk.bold('\n6. Codex Configuration:'));
   console.log(`   Profile file: ${codexProfilePath}`);
 
   if (fs.existsSync(codexProfilePath)) {
@@ -750,7 +849,7 @@ async function doctor() {
 
   // Check global Claude config
   const globalClaudeConfig = path.join(os.homedir(), '.claude', 'settings.json');
-  console.log(chalk.bold('\n6. Global Claude Configuration:'));
+  console.log(chalk.bold('\n7. Global Claude Configuration:'));
   console.log(`   Location: ${globalClaudeConfig}`);
 
   if (fs.existsSync(globalClaudeConfig)) {
@@ -773,7 +872,7 @@ async function doctor() {
   }
 
   // Check current account availability
-  console.log(chalk.bold('\n7. Current Account Availability:'));
+  console.log(chalk.bold('\n8. Current Account Availability:'));
   const projectAccount = config.getProjectAccount();
 
   if (projectAccount && projectAccount.apiKey) {
@@ -812,6 +911,15 @@ async function doctor() {
       } catch (e) {
         console.log(chalk.yellow('   ⚠ Codex CLI not found'));
       }
+    } else if (projectAccount.type === 'Droids') {
+      console.log('   Testing with Droids CLI...');
+      const { execSync } = require('child_process');
+      try {
+        execSync('droid --version', { stdio: 'pipe', timeout: 5000 });
+        console.log(chalk.green('   ✓ Droids CLI is available'));
+      } catch (e) {
+        console.log(chalk.yellow('   ⚠ Droids CLI not found'));
+      }
     }
 
     console.log(`   API URL: ${projectAccount.apiUrl || 'https://api.anthropic.com'}`);
@@ -840,7 +948,7 @@ async function doctor() {
   }
 
   // Recommendations
-  console.log(chalk.bold('\n8. Recommendations:'));
+  console.log(chalk.bold('\n9. Recommendations:'));
 
   if (projectRoot && process.cwd() !== projectRoot) {
     console.log(chalk.yellow(`   ⚠ You are in a subdirectory (${path.relative(projectRoot, process.cwd())})`));
@@ -855,9 +963,9 @@ async function doctor() {
     console.log(chalk.gray(`   • File: ${globalClaudeConfig}`));
   }
 
-  console.log(chalk.bold('\n9. Next Steps:'));
-  console.log(chalk.cyan('   • Start Claude Code from your project directory or subdirectory'));
-  console.log(chalk.cyan('   • Check which account Claude Code is using'));
+  console.log(chalk.bold('\n10. Next Steps:'));
+  console.log(chalk.cyan('   • Start Claude Code/Codex/Droids from your project directory or subdirectory'));
+  console.log(chalk.cyan('   • Check which account is being used'));
   console.log(chalk.cyan('   • If wrong account is used, run: ais use <correct-account>'));
   console.log('');
 }

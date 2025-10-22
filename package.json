@@ -1,7 +1,7 @@
 {
   "name": "ai-account-switch",
-  "version": "1.5.6",
-  "description": "A cross-platform CLI tool to manage and switch Claude/Codex account configurations",
+  "version": "1.5.7",
+  "description": "A cross-platform CLI tool to manage and switch Claude/Codex/Droids account configurations",
   "main": "src/index.js",
   "bin": {
     "ais": "./bin/ais.js"
@@ -14,11 +14,13 @@
     "cli",
     "claude",
     "codex",
+    "droids",
     "account",
     "switch",
     "cross-platform",
     "claude-code",
-    "ai"
+    "ai",
+    "ai-assistant"
   ],
   "author": "deanwanghewei@gmail.comnpm view ai-account-switch",
   "license": "MIT",

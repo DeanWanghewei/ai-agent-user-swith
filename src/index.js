@@ -25,7 +25,7 @@ const packageJson = require('../package.json');
 
 program
   .name('ais')
-  .description('AI Account Switch - Manage and switch Claude/Codex account configurations')
+  .description('AI Account Switch - Manage and switch Claude/Codex/Droids account configurations')
   .version(packageJson.version);
 
 // Add account command

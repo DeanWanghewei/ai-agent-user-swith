@@ -2,7 +2,7 @@
 
 [English](README.md) | 简体中文
 
-一个跨平台的命令行工具，用于管理和切换不同项目的 Claude/Codex 账户配置。
+一个跨平台的命令行工具，用于管理和切换不同项目的 Claude/Codex/Droids 账户配置。
 
 ## 特性
 
@@ -21,7 +21,7 @@
   - 🎯 主题自动跟随系统设置
 - **安全存储**:账户凭证仅存储在本地
 - **交互式命令行**：所有操作都有易用的交互式提示
-- **多种账户类型**：支持 Claude、Codex 和其他 AI 服务
+- **多种账户类型**：支持 Claude、Codex、Droids 和其他 AI 服务
 
 ## 安装
 
@@ -384,6 +384,108 @@ grep -A 10 "$(cat .codex-profile)" ~/.codex/config.toml
 ais doctor
 ```
 
+### Droids 集成
+
+当你添加 **Droids** 类型账户并运行 `ais use` 时，工具会自动在项目目录中创建 `.droids/config.json` 配置文件。
+
+#### 添加 Droids 账户
+
+添加 Droids 账户时，你会看到有用的配置提示：
+
+```bash
+ais add my-droids-account
+
+? Select account type: Droids
+
+📝 Droids Configuration Tips:
+   • Droids configuration will be stored in .droids/config.json
+   • API URL is optional (defaults to Droids default endpoint)
+   • You can configure custom models and settings
+
+? Enter API Key: sk-xxx...
+? Enter API URL (optional): https://api.example.com
+? Do you want to specify a model? (Optional) Yes
+? Enter model name: droids-model-v1
+```
+
+#### 在项目中使用 Droids
+
+使用 Droids 账户运行 `ais use` 后：
+
+```bash
+cd ~/my-project
+ais use my-droids-account
+
+# 输出：
+# ✓ Switched to account 'my-droids-account' for current project.
+# ✓ Droids configuration generated at: .droids/config.json
+#
+# 📖 Next Steps:
+#    Start interactive session: droid
+#    This will enter project-level interactive mode
+#    Droids will automatically use the configuration from .droids/config.json
+```
+
+工具会创建：
+- **项目配置**：`.droids/config.json` 包含你的账户设置
+
+#### 运行 Droids
+
+启动 Droids 交互会话：
+
+```bash
+# 在项目目录中
+droid
+
+# Droids 会自动从 .droids/config.json 加载配置
+```
+
+#### Droids 配置结构
+
+在 `.droids/config.json` 中生成的配置：
+
+```json
+{
+  "apiKey": "your-api-key",
+  "baseUrl": "https://api.example.com",
+  "model": "droids-model-v1",
+  "customSettings": {
+    "CUSTOM_VAR": "value"
+  }
+}
+```
+
+#### 在不同项目间切换
+
+每个项目可以使用不同的 Droids 账户：
+
+```bash
+# 项目 A
+cd ~/project-a
+ais use droids-account-1
+droid
+
+# 项目 B
+cd ~/project-b
+ais use droids-account-2
+droid
+```
+
+#### Droids 故障排除
+
+**检查 Droids 配置**
+```bash
+# 查看你的 Droids 配置
+cat .droids/config.json
+
+# 或使用 doctor 命令
+ais doctor
+```
+
+**Droids CLI 未找到**
+- 确保 Droids CLI 已安装并在 PATH 中可用
+- 运行 `droid --version` 验证安装
+
 #### 自定义环境变量
 
 在创建账户时可以添加自定义环境变量。在提示时，使用 `KEY=VALUE` 格式输入：
@@ -424,6 +526,9 @@ ais add work-claude
 
 # 添加 Codex 账户
 ais add codex-dev
+
+# 添加 Droids 账户
+ais add droids-dev
 
 # 列出所有账户
 ais list
@@ -593,6 +698,28 @@ ais current  # 应该显示你的账户
 MIT License - 欢迎在你的项目中使用此工具！
 
 ## 更新日志
+
+### v1.5.7
+- **Droids 集成**：
+  - 完整支持 Droids AI 助手
+  - 自动生成 `.droids/config.json` 配置文件
+  - Droids 账户的简单模型配置
+  - 交互会话命令：`droid`
+  - 增强 `ais doctor` 命令，支持 Droids 配置检测
+- **UI 增强**：
+  - 添加类型筛选下拉框，快速过滤账户
+  - 按类型为账户卡片着色（Claude: 蓝色，Codex: 紫色，Droids: 绿色，Other: 橙色）
+  - 账户卡片左侧边框颜色指示器
+  - 改进视觉层次和用户体验
+- **模型配置改进**：
+  - 为不同账户类型分离模型配置
+  - Claude: 复杂的模型组，支持多个模型设置
+  - Codex/Droids: 简单的模型字段，配置更直观
+  - 所有模型设置移至可折叠的"高级配置"区域
+- **更好的用户指引**：
+  - 增强 `ais use` 命令，提供清晰的下一步操作说明
+  - 为每个 AI 助手提供特定类型的使用示例
+  - 交互模式提示而非一次性命令示例
 
 ### v1.5.1
 - **Codex 集成增强**：

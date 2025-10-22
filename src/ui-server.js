@@ -482,6 +482,21 @@ class UIServer {
             color: var(--text-primary);
         }
 
+        .filter-box {
+            min-width: 150px;
+        }
+
+        .filter-box select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 5px;
+            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
         .accounts-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -497,11 +512,28 @@ class UIServer {
             display: flex;
             flex-direction: column;
             min-height: 200px;
+            border-left: 4px solid transparent;
         }
 
         .account-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 6px 12px var(--card-shadow-hover);
+        }
+
+        .account-card.type-claude {
+            border-left-color: #1976d2;
+        }
+
+        .account-card.type-codex {
+            border-left-color: #7b1fa2;
+        }
+
+        .account-card.type-droids {
+            border-left-color: #388e3c;
+        }
+
+        .account-card.type-other {
+            border-left-color: #f57c00;
         }
 
         .account-content {
@@ -527,8 +559,26 @@ class UIServer {
             border-radius: 4px;
             font-size: 12px;
             font-weight: 500;
+        }
+
+        .account-type.type-claude {
             background: #e3f2fd;
             color: #1976d2;
+        }
+
+        .account-type.type-codex {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .account-type.type-droids {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .account-type.type-other {
+            background: #fff3e0;
+            color: #f57c00;
         }
 
         .account-info {
@@ -807,6 +857,15 @@ class UIServer {
             <div class="search-box">
                 <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="搜索账号...">
             </div>
+            <div class="filter-box">
+                <select id="typeFilter" onchange="renderAccounts()">
+                    <option value="" data-i18n="allTypes">所有类型</option>
+                    <option value="Claude">Claude</option>
+                    <option value="Codex">Codex</option>
+                    <option value="Droids">Droids</option>
+                    <option value="Other" data-i18n="other">其他</option>
+                </select>
+            </div>
             <button class="btn btn-primary" onclick="showAddModal()" data-i18n="addAccount">+ 添加账号</button>
             <button class="btn btn-secondary" onclick="exportAccounts()" data-i18n="exportAll">导出全部</button>
             <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()" data-i18n="import">导入</button>
@@ -832,9 +891,10 @@ class UIServer {
                 </div>
                 <div class="form-group">
                     <label for="accountType" data-i18n="type">类型 *</label>
-                    <select id="accountType" required>
+                    <select id="accountType" required onchange="toggleModelFields()">
                         <option value="Claude">Claude</option>
                         <option value="Codex">Codex</option>
+                        <option value="Droids">Droids</option>
                         <option value="Other" data-i18n="other">其他</option>
                     </select>
                 </div>
@@ -855,18 +915,30 @@ class UIServer {
                     <textarea id="description" data-i18n-placeholder="descriptionPlaceholder" placeholder="用于生产环境的主账号"></textarea>
                 </div>
                 <div class="form-group">
-                    <label data-i18n="customEnv">自定义环境变量 (可选)</label>
-                    <div id="envVarsList"></div>
-                    <button type="button" class="btn btn-secondary btn-small" onclick="addEnvVar()" data-i18n="addVariable">+ 添加变量</button>
-                </div>
-                <div class="form-group">
                     <div class="advanced-toggle" onclick="toggleAdvancedSettings()">
                         <span class="advanced-toggle-icon" id="advancedToggleIcon">▶</span>
-                        <span data-i18n="advancedSettings">高级设置 - 模型组</span>
+                        <span data-i18n="advancedSettings">高级配置</span>
                     </div>
                     <div class="advanced-content" id="advancedContent">
-                        <div id="modelGroupsList" style="margin-bottom: 10px;"></div>
-                        <button type="button" class="btn btn-secondary btn-small" onclick="addModelGroupUI()" data-i18n="addModelGroup">+ 添加模型组</button>
+                        <!-- Custom Environment Variables -->
+                        <div class="form-group">
+                            <label data-i18n="customEnv">自定义环境变量</label>
+                            <div id="envVarsList"></div>
+                            <button type="button" class="btn btn-secondary btn-small" onclick="addEnvVar()" data-i18n="addVariable">+ 添加变量</button>
+                        </div>
+                        <!-- Model Configuration -->
+                        <div class="form-group">
+                            <label data-i18n="modelConfig">模型配置</label>
+                            <!-- Simple model field for Codex/Droids -->
+                            <div id="simpleModelGroup" style="display: none;">
+                                <input type="text" id="simpleModel" data-i18n-placeholder="simpleModelPlaceholder" placeholder="例如: gpt-4, droids-model-v1">
+                            </div>
+                            <!-- Model groups for Claude -->
+                            <div id="claudeModelGroup" style="display: none;">
+                                <div id="modelGroupsList" style="margin-bottom: 10px;"></div>
+                                <button type="button" class="btn btn-secondary btn-small" onclick="addModelGroupUI()" data-i18n="addModelGroup">+ 添加模型组</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="form-actions">
@@ -885,6 +957,7 @@ class UIServer {
                 subtitle: '管理你的 AI 账号配置',
                 themeLabel: '主题',
                 searchPlaceholder: '搜索账号...',
+                allTypes: '所有类型',
                 addAccount: '+ 添加账号',
                 exportAll: '导出全部',
                 import: '导入',
@@ -904,9 +977,12 @@ class UIServer {
                 emailPlaceholder: 'user@example.com',
                 description: '描述 (可选)',
                 descriptionPlaceholder: '用于生产环境的主账号',
-                customEnv: '自定义环境变量 (可选)',
+                advancedSettings: '高级配置',
+                customEnv: '自定义环境变量',
                 addVariable: '+ 添加变量',
-                advancedSettings: '高级设置 - 模型组',
+                modelConfig: '模型配置',
+                simpleModel: '模型',
+                simpleModelPlaceholder: '例如: gpt-4, droids-model-v1',
                 addModelGroup: '+ 添加模型组',
                 modelGroupName: '模型组名称',
                 setActive: '设为激活',
@@ -937,6 +1013,7 @@ class UIServer {
                 subtitle: 'Manage your AI account configurations',
                 themeLabel: 'Theme',
                 searchPlaceholder: 'Search accounts...',
+                allTypes: 'All Types',
                 addAccount: '+ Add Account',
                 exportAll: 'Export All',
                 import: 'Import',
@@ -956,9 +1033,12 @@ class UIServer {
                 emailPlaceholder: 'user@example.com',
                 description: 'Description (optional)',
                 descriptionPlaceholder: 'Main account for production environment',
-                customEnv: 'Custom Environment Variables (optional)',
+                advancedSettings: 'Advanced Configuration',
+                customEnv: 'Custom Environment Variables',
                 addVariable: '+ Add Variable',
-                advancedSettings: 'Advanced Settings - Model Groups',
+                modelConfig: 'Model Configuration',
+                simpleModel: 'Model',
+                simpleModelPlaceholder: 'e.g., gpt-4, droids-model-v1',
                 addModelGroup: '+ Add Model Group',
                 modelGroupName: 'Model Group Name',
                 setActive: 'Set Active',
@@ -1068,11 +1148,18 @@ class UIServer {
             const container = document.getElementById('accountsContainer');
             const emptyState = document.getElementById('emptyState');
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const typeFilter = document.getElementById('typeFilter').value;
 
             const filteredAccounts = Object.entries(accounts).filter(([name, data]) => {
-                return name.toLowerCase().includes(searchTerm) ||
+                // Search filter
+                const matchesSearch = name.toLowerCase().includes(searchTerm) ||
                        (data.email && data.email.toLowerCase().includes(searchTerm)) ||
                        (data.type && data.type.toLowerCase().includes(searchTerm));
+
+                // Type filter
+                const matchesType = !typeFilter || data.type === typeFilter;
+
+                return matchesSearch && matchesType;
             });
 
             if (filteredAccounts.length === 0) {
@@ -1082,12 +1169,14 @@ class UIServer {
             }
 
             emptyState.classList.add('hidden');
-            container.innerHTML = filteredAccounts.map(([name, data]) => \`
-                <div class="account-card">
+            container.innerHTML = filteredAccounts.map(([name, data]) => {
+                const typeClass = data.type ? \`type-\${data.type.toLowerCase()}\` : 'type-other';
+                return \`
+                <div class="account-card \${typeClass}">
                     <div class="account-content">
                         <div class="account-header">
                             <div class="account-name">\${name}</div>
-                            <div class="account-type">\${data.type || 'N/A'}</div>
+                            <div class="account-type \${typeClass}">\${data.type || 'N/A'}</div>
                         </div>
                         <div class="account-info">
                             <div class="info-label">\${t('apiKeyLabel')}</div>
@@ -1117,10 +1206,16 @@ class UIServer {
                             <div class="info-value">\${Object.keys(data.customEnv).join(', ')}</div>
                         </div>
                         \` : ''}
-                        \${data.modelGroups && Object.keys(data.modelGroups).length > 0 ? \`
+                        \${data.type === 'Claude' && data.modelGroups && Object.keys(data.modelGroups).length > 0 ? \`
                         <div class="account-info">
                             <div class="info-label">Model Groups</div>
                             <div class="info-value">\${Object.keys(data.modelGroups).join(', ')} \${data.activeModelGroup ? '(active: ' + data.activeModelGroup + ')' : ''}</div>
+                        </div>
+                        \` : ''}
+                        \${(data.type === 'Codex' || data.type === 'Droids') && data.model ? \`
+                        <div class="account-info">
+                            <div class="info-label">Model</div>
+                            <div class="info-value">\${data.model}</div>
                         </div>
                         \` : ''}
                     </div>
@@ -1129,12 +1224,29 @@ class UIServer {
                         <button class="btn btn-danger btn-small" onclick="deleteAccount('\${name}')">\${t('delete')}</button>
                     </div>
                 </div>
-            \`).join('');
+            \`;
+            }).join('');
         }
 
         function maskApiKey(key) {
             if (!key || key.length < 8) return '****';
             return key.substring(0, 4) + '****' + key.substring(key.length - 4);
+        }
+
+        function toggleModelFields() {
+            const accountType = document.getElementById('accountType').value;
+            const simpleModelGroup = document.getElementById('simpleModelGroup');
+            const claudeModelGroup = document.getElementById('claudeModelGroup');
+
+            if (accountType === 'Codex' || accountType === 'Droids') {
+                // Show simple model field, hide Claude model groups
+                simpleModelGroup.style.display = 'block';
+                claudeModelGroup.style.display = 'none';
+            } else {
+                // Show Claude model groups, hide simple model field
+                simpleModelGroup.style.display = 'none';
+                claudeModelGroup.style.display = 'block';
+            }
         }
 
         function showAddModal() {
@@ -1148,9 +1260,13 @@ class UIServer {
             document.getElementById('modelGroupsList').innerHTML = '';
             modelGroupCount = 0;
             activeModelGroup = null;
+            // Clear simple model
+            document.getElementById('simpleModel').value = '';
             // Collapse advanced settings
             document.getElementById('advancedContent').classList.remove('expanded');
             document.getElementById('advancedToggleIcon').classList.remove('expanded');
+            // Toggle model fields based on default type (Claude)
+            toggleModelFields();
             document.getElementById('accountModal').classList.add('active');
         }
 
@@ -1176,13 +1292,27 @@ class UIServer {
                 });
             }
 
-            // Load model groups
-            document.getElementById('modelGroupsList').innerHTML = '';
-            modelGroupCount = 0;
-            activeModelGroup = null;
+            // Toggle model fields based on account type
+            toggleModelFields();
 
-            const hasModelGroups = account.modelGroups && Object.keys(account.modelGroups).length > 0;
-            if (hasModelGroups) {
+            // Load model configuration based on account type
+            if (account.type === 'Codex' || account.type === 'Droids') {
+                // Load simple model field
+                document.getElementById('simpleModel').value = account.model || '';
+                // Clear model groups
+                document.getElementById('modelGroupsList').innerHTML = '';
+                modelGroupCount = 0;
+                activeModelGroup = null;
+            } else {
+                // Load model groups for Claude
+                document.getElementById('modelGroupsList').innerHTML = '';
+                modelGroupCount = 0;
+                activeModelGroup = null;
+                // Clear simple model
+                document.getElementById('simpleModel').value = '';
+
+                const hasModelGroups = account.modelGroups && Object.keys(account.modelGroups).length > 0;
+                if (hasModelGroups) {
                 Object.entries(account.modelGroups).forEach(([groupName, groupConfig]) => {
                     const groupId = modelGroupCount++;
                     const isActive = account.activeModelGroup === groupName;
@@ -1237,13 +1367,14 @@ class UIServer {
                     container.appendChild(div);
                 });
 
-                // Expand advanced settings if model groups exist
-                document.getElementById('advancedContent').classList.add('expanded');
-                document.getElementById('advancedToggleIcon').classList.add('expanded');
-            } else {
-                // Collapse advanced settings if no model groups
-                document.getElementById('advancedContent').classList.remove('expanded');
-                document.getElementById('advancedToggleIcon').classList.remove('expanded');
+                    // Expand advanced settings if model groups exist
+                    document.getElementById('advancedContent').classList.add('expanded');
+                    document.getElementById('advancedToggleIcon').classList.add('expanded');
+                } else {
+                    // Collapse advanced settings if no model groups
+                    document.getElementById('advancedContent').classList.remove('expanded');
+                    document.getElementById('advancedToggleIcon').classList.remove('expanded');
+                }
             }
 
             document.getElementById('accountModal').classList.add('active');
@@ -1404,12 +1535,22 @@ class UIServer {
                 delete accountData.customEnv;
             }
 
-            // Collect model groups
-            accountData.modelGroups = {};
-            accountData.activeModelGroup = null;
+            // Collect model configuration based on account type
+            const accountType = document.getElementById('accountType').value;
 
-            const modelGroupsList = document.getElementById('modelGroupsList');
-            modelGroupsList.querySelectorAll('.model-group-item').forEach(item => {
+            if (accountType === 'Codex' || accountType === 'Droids') {
+                // Use simple model field
+                const simpleModel = document.getElementById('simpleModel').value.trim();
+                if (simpleModel) {
+                    accountData.model = simpleModel;
+                }
+            } else {
+                // Collect model groups for Claude
+                accountData.modelGroups = {};
+                accountData.activeModelGroup = null;
+
+                const modelGroupsList = document.getElementById('modelGroupsList');
+                modelGroupsList.querySelectorAll('.model-group-item').forEach(item => {
                 const groupId = parseInt(item.id.replace('modelGroup', ''));
                 const groupName = document.getElementById(\`groupName\${groupId}\`).value;
 
@@ -1430,15 +1571,16 @@ class UIServer {
 
                 accountData.modelGroups[groupName] = groupConfig;
 
-                // Check if this is the active group
-                if (activeModelGroup === groupId) {
-                    accountData.activeModelGroup = groupName;
-                }
-            });
+                    // Check if this is the active group
+                    if (activeModelGroup === groupId) {
+                        accountData.activeModelGroup = groupName;
+                    }
+                });
 
-            if (Object.keys(accountData.modelGroups).length === 0) {
-                delete accountData.modelGroups;
-                delete accountData.activeModelGroup;
+                if (Object.keys(accountData.modelGroups).length === 0) {
+                    delete accountData.modelGroups;
+                    delete accountData.activeModelGroup;
+                }
             }
 
             try {
