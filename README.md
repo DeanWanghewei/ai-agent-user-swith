@@ -531,10 +531,10 @@ ais paths
 
 ## Requirements
 
-- **Node.js**: >= 14.0.0
-- **npm**: >= 6.0.0
+- **Node.js**: >= 16.0.0
+- **npm**: >= 7.0.0
 
-**Note**: This tool requires Node.js version 14 or higher. You can check your current version with:
+**Note**: This tool requires Node.js version 16 or higher (due to commander@11.x dependency). You can check your current version with:
 ```bash
 node --version
 npm --version

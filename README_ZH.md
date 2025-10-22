@@ -601,10 +601,10 @@ ais use correct-account
 
 ## 系统要求
 
-- **Node.js**: >= 14.0.0
-- **npm**: >= 6.0.0
+- **Node.js**: >= 16.0.0
+- **npm**: >= 7.0.0
 
-**注意**: 此工具需要 Node.js 14 或更高版本。你可以使用以下命令检查当前版本:
+**注意**: 此工具需要 Node.js 16 或更高版本（因为 commander@11.x 依赖要求）。你可以使用以下命令检查当前版本:
 ```bash
 node --version
 npm --version
