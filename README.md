@@ -531,8 +531,16 @@ ais paths
 
 ## Requirements
 
-- Node.js >= 14.0.0
-- npm >= 6.0.0
+- **Node.js**: >= 14.0.0
+- **npm**: >= 6.0.0
+
+**Note**: This tool requires Node.js version 14 or higher. You can check your current version with:
+```bash
+node --version
+npm --version
+```
+
+If you need to upgrade Node.js, visit [nodejs.org](https://nodejs.org/) or use a version manager like [nvm](https://github.com/nvm-sh/nvm).
 
 ## Project Structure
 

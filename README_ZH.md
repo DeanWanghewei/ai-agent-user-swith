@@ -601,8 +601,16 @@ ais use correct-account
 
 ## 系统要求
 
-- Node.js >= 14.0.0
-- npm >= 6.0.0
+- **Node.js**: >= 14.0.0
+- **npm**: >= 6.0.0
+
+**注意**: 此工具需要 Node.js 14 或更高版本。你可以使用以下命令检查当前版本:
+```bash
+node --version
+npm --version
+```
+
+如果需要升级 Node.js，请访问 [nodejs.org](https://nodejs.org/) 或使用版本管理器如 [nvm](https://github.com/nvm-sh/nvm)。
 
 ## 项目结构
 
