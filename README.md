@@ -630,6 +630,14 @@ MIT License - feel free to use this tool in your projects!
 
 ## Changelog
 
+### v1.5.8
+- **Bilingual Support (双语支持)**:
+  - All CLI commands now display both English and Chinese text (所有 CLI 命令现在同时显示中英文)
+  - Help messages, prompts, and output messages are bilingual (帮助信息、提示和输出消息都支持双语)
+  - Better user experience for Chinese-speaking users (为中文用户提供更好的使用体验)
+  - No configuration needed - works out of the box (无需配置 - 开箱即用)
+  - Uses parentheses format for better clarity: `English text (中文)` (使用括号格式更清晰)
+
 ### v1.5.7
 - **Droids Integration**:
   - Added full support for Droids AI assistant

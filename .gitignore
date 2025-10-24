@@ -39,3 +39,6 @@ yarn.lock
 
 # AIS (AI Account Switch) - Local configuration files
 .codex-profile
+
+# AIS (AI Account Switch) - Local configuration files
+.droids/config.json
