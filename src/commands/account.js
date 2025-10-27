@@ -48,7 +48,7 @@ async function addAccount(name, options) {
             type: "list",
             name: "type",
             message: "Select account type (请选择账号类型):",
-            choices: ["Claude", "Codex", "Droids", "Other"],
+            choices: ["Claude", "Codex", "CCR", "Droids", "Other"],
             default: "Claude",
         },
     ]);
@@ -92,6 +92,19 @@ async function addAccount(name, options) {
                 "   • You can configure custom models and settings (您可以配置自定义模型和设置)\n"
             )
         );
+    } else if (typeAnswer.type === "CCR") {
+        console.log(
+            chalk.cyan("\n📝 CCR Configuration Tips (CCR 配置提示):")
+        );
+        console.log(
+            "   • CCR configuration will be stored in ~/.claude-code-router/config.json (CCR 配置将存储在 ~/.claude-code-router/config.json)"
+        );
+        console.log(
+            "   • You need to provide Provider name and models (您需要提供 Provider 名称和模型列表)"
+        );
+        console.log(
+            "   • Router configuration will be automatically updated (Router 配置将自动更新)\n"
+        );
     }
 
     // Prompt for remaining account details
@@ -109,8 +122,10 @@ async function addAccount(name, options) {
             message:
                 typeAnswer.type === "Codex"
                     ? "Enter API URL (请输入 API URL) (e.g., https://api.example.com or https://api.example.com/v1) :"
+                    : typeAnswer.type === "CCR"
+                    ? "Enter API URL (请输入 API URL):"
                     : "Enter API URL (optional) (请输入 API URL,可选):",
-            default: "",
+            default: typeAnswer.type === "CCR" ? "http://localhost:3000/v1/chat/completions" : "",
         },
         {
             type: "input",
@@ -310,6 +325,74 @@ async function addAccount(name, options) {
                 );
             }
         }
+    } else if (accountData.type === "CCR") {
+        // CCR needs provider name and models configuration
+        const ccrConfig = await inquirer.prompt([
+            {
+                type: "input",
+                name: "providerName",
+                message: "Enter Provider name (请输入 Provider 名称):",
+                validate: (input) =>
+                    input.trim() !== "" || "Provider name is required (Provider 名称不能为空)",
+            },
+            {
+                type: "input",
+                name: "defaultModel",
+                message: "Enter default model (请输入 default 模型):",
+                validate: (input) =>
+                    input.trim() !== "" || "Default model is required (默认模型不能为空)",
+            },
+            {
+                type: "input",
+                name: "backgroundModel",
+                message: "Enter background model (请输入 background 模型):",
+                validate: (input) =>
+                    input.trim() !== "" || "Background model is required (background 模型不能为空)",
+            },
+            {
+                type: "input",
+                name: "thinkModel",
+                message: "Enter think model (请输入 think 模型):",
+                validate: (input) =>
+                    input.trim() !== "" || "Think model is required (think 模型不能为空)",
+            },
+        ]);
+
+        const models = [
+            ccrConfig.defaultModel.trim(),
+            ccrConfig.backgroundModel.trim(),
+            ccrConfig.thinkModel.trim()
+        ];
+        const uniqueModels = [...new Set(models)];
+
+        accountData.ccrConfig = {
+            providerName: ccrConfig.providerName.trim(),
+            models: uniqueModels,
+            defaultModel: ccrConfig.defaultModel.trim(),
+            backgroundModel: ccrConfig.backgroundModel.trim(),
+            thinkModel: ccrConfig.thinkModel.trim(),
+        };
+
+        console.log(
+            chalk.green(
+                `\n✓ CCR Provider: ${accountData.ccrConfig.providerName}`
+            )
+        );
+        console.log(
+            chalk.green(
+                `✓ Default Model: ${accountData.ccrConfig.defaultModel}`
+            )
+        );
+        console.log(
+            chalk.green(
+                `✓ Background Model: ${accountData.ccrConfig.backgroundModel}`
+            )
+        );
+        console.log(
+            chalk.green(
+                `✓ Think Model: ${accountData.ccrConfig.thinkModel}`
+            )
+        );
     }
 
     // Save account
@@ -342,6 +425,8 @@ async function addAccount(name, options) {
         accountData.model
     ) {
         console.log(chalk.cyan(`✓ Model (模型): ${accountData.model}\n`));
+    } else if (accountData.type === "CCR" && accountData.ccrConfig) {
+        console.log(chalk.cyan(`✓ CCR Provider: ${accountData.ccrConfig.providerName}\n`));
     }
 
     // Show usage instructions based on account type
@@ -410,6 +495,23 @@ async function addAccount(name, options) {
         console.log(
             chalk.white(
                 "3. Droids will automatically use the configuration from .droids/config.json (Droids 将自动使用 .droids/config.json 中的配置)\n"
+            )
+        );
+    } else if (accountData.type === "CCR") {
+        console.log(
+            chalk.bold.cyan(
+                "\n📖 CCR Usage Instructions (CCR 使用说明):\n"
+            )
+        );
+        console.log(
+            chalk.white(
+                "1. Switch to this account in your project (在项目中切换到此账号):"
+            )
+        );
+        console.log(chalk.cyan(`   ais use ${name}\n`));
+        console.log(
+            chalk.white(
+                "2. CCR configuration will be updated in ~/.claude-code-router/config.json (CCR 配置将更新到 ~/.claude-code-router/config.json)\n"
             )
         );
     }
@@ -540,6 +642,7 @@ async function useAccount(name) {
     if (success) {
         const fs = require("fs");
         const path = require("path");
+        const { execSync } = require("child_process");
         const account = config.getAccount(name);
 
         console.log(
@@ -548,6 +651,18 @@ async function useAccount(name) {
             )
         );
         console.log(chalk.yellow(`Project (项目): ${process.cwd()}`));
+
+        // Restart CCR if account type is CCR
+        if (account && account.type === "CCR") {
+            try {
+                console.log(chalk.cyan("\n🔄 Restarting CCR Router... (重启 CCR Router...)"));
+                execSync("ccr restart", { stdio: "inherit" });
+                console.log(chalk.green("✓ CCR Router restarted successfully (CCR Router 重启成功)\n"));
+            } catch (error) {
+                console.log(chalk.yellow("⚠ Failed to restart CCR Router automatically (自动重启 CCR Router 失败)"));
+                console.log(chalk.yellow("  Please run manually: ccr restart (请手动运行: ccr restart)\n"));
+            }
+        }
 
         // Show different messages based on account type
         if (account && account.type === "Codex") {
@@ -597,6 +712,36 @@ async function useAccount(name) {
             console.log(
                 chalk.white(
                     "   Droids will automatically use the configuration from .droids/config.json (Droids 将自动使用 .droids/config.json 中的配置)"
+                )
+            );
+        } else if (account && account.type === "CCR") {
+            console.log(
+                chalk.cyan(
+                    `✓ CCR configuration updated at (CCR 配置已更新至): ~/.claude-code-router/config.json`
+                )
+            );
+            console.log(
+                chalk.cyan(
+                    `✓ Claude configuration generated at (Claude 配置已生成至): .claude/settings.local.json`
+                )
+            );
+            console.log("");
+            console.log(chalk.bold.cyan("📖 Next Steps (下一步):"));
+            console.log(
+                chalk.yellow(
+                    `   Start interactive session (启动交互式会话): ${chalk.bold(
+                        "claude"
+                    )}`
+                )
+            );
+            console.log(
+                chalk.white(
+                    "   This will enter project-level interactive mode (这将进入项目级交互模式)"
+                )
+            );
+            console.log(
+                chalk.white(
+                    "   Claude Code will use CCR Router to route requests (Claude Code 将使用 CCR Router 路由请求)"
                 )
             );
         } else {

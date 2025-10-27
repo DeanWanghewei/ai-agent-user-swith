@@ -21,7 +21,7 @@
   - 🎯 主题自动跟随系统设置
 - **安全存储**:账户凭证仅存储在本地
 - **交互式命令行**：所有操作都有易用的交互式提示
-- **多种账户类型**：支持 Claude、Codex、Droids 和其他 AI 服务
+- **多种账户类型**：支持 Claude、Codex、CCR (Claude Code Router)、Droids 和其他 AI 服务
 
 ## 安装
 
@@ -100,7 +100,7 @@ ais add my-claude-account
 ```
 
 系统将提示你输入：
-- 账户类型（Claude、Codex、其他）
+- 账户类型（Claude、Codex、CCR、Droids、其他）
 - API Key
 - API URL（可选）
 - Email（可选）
@@ -383,6 +383,163 @@ grep -A 10 "$(cat .codex-profile)" ~/.codex/config.toml
 # 或使用 doctor 命令
 ais doctor
 ```
+
+### CCR (Claude Code Router) 集成
+
+[Claude Code Router](https://github.com/musistudio/claude-code-router) 是一个强大的 Claude Code 路由层，允许你无缝使用多个 AI 提供商和模型。
+
+当你添加 **CCR** 类型账户并运行 `ais use` 时，工具会自动：
+1. 更新 `~/.claude-code-router/config.json` 中的 Provider 和 Router 配置
+2. 生成指向本地 CCR Router 的 `.claude/settings.local.json`
+3. 自动重启 CCR Router 以应用更改
+
+**前提条件：**
+- 安装 Claude Code Router：`npm install -g @musistudio/claude-code-router`
+- 启动 CCR Router：`ccr start`
+
+#### 添加 CCR 账户
+
+添加 CCR 账户时，你会看到有用的配置提示：
+
+```bash
+ais add my-ccr-account
+
+? Select account type: CCR
+
+📝 CCR Configuration Tips:
+   • CCR configuration will be stored in ~/.claude-code-router/config.json
+   • You need to provide Provider name and models
+   • Router configuration will be automatically updated
+
+? Enter API Key: sk-xxx...
+? Enter API URL: http://localhost:3000/v1/chat/completions
+? Enter Provider name: Local-new-api
+? Enter default model: gemini-2.5-flash
+? Enter background model: gemini-2.5-flash
+? Enter think model: gemini-2.5-pro
+```
+
+**重要说明：**
+- 默认 API URL 是 `http://localhost:3000/v1/chat/completions`
+- 你需要指定三个模型：default、background 和 think
+- 模型会在 Provider 配置中自动去重
+
+#### 在项目中使用 CCR
+
+使用 CCR 账户运行 `ais use` 后：
+
+```bash
+cd ~/my-project
+ais use my-ccr-account
+
+# 输出：
+# ✓ Switched to account 'my-ccr-account' for current project.
+# 🔄 Restarting CCR Router...
+# ✓ CCR Router restarted successfully
+# ✓ CCR configuration updated at: ~/.claude-code-router/config.json
+# ✓ Claude configuration generated at: .claude/settings.local.json
+#
+# 📖 Next Steps:
+#    Start interactive session: claude
+#    This will enter project-level interactive mode
+#    Claude Code will use CCR Router to route requests
+```
+
+工具会：
+1. **更新 CCR 配置**：在 `~/.claude-code-router/config.json` 中添加/更新 Provider
+2. **更新 Router**：设置 default、background 和 think 模型
+3. **生成 Claude 配置**：创建 `.claude/settings.local.json`，`ANTHROPIC_BASE_URL` 指向 CCR Router
+4. **重启 CCR**：自动运行 `ccr restart` 以应用更改
+
+#### 使用 CCR 运行 Claude
+
+启动 Claude 交互会话：
+
+```bash
+# 在项目目录中
+claude
+
+# Claude Code 会自动使用 CCR Router
+# 请求会根据你的 CCR 配置进行路由
+```
+
+#### CCR 配置结构
+
+在 `~/.claude-code-router/config.json` 中生成的配置：
+
+```json
+{
+  "PORT": 3456,
+  "Providers": [
+    {
+      "api_base_url": "http://localhost:3000/v1/chat/completions",
+      "api_key": "sk-xxx...",
+      "models": ["gemini-2.5-flash", "gemini-2.5-pro"],
+      "name": "Local-new-api"
+    }
+  ],
+  "Router": {
+    "default": "Local-new-api,gemini-2.5-flash",
+    "background": "Local-new-api,gemini-2.5-flash",
+    "think": "Local-new-api,gemini-2.5-pro"
+  }
+}
+```
+
+在 `.claude/settings.local.json` 中生成的配置：
+
+```json
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "your-api-key",
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:3456"
+  }
+}
+```
+
+#### 在不同项目间切换
+
+每个项目可以使用不同的 CCR 配置：
+
+```bash
+# 项目 A
+cd ~/project-a
+ais use ccr-account-1
+claude
+
+# 项目 B
+cd ~/project-b
+ais use ccr-account-2
+claude
+```
+
+#### CCR 故障排除
+
+**检查 CCR 配置**
+```bash
+# 查看你的 CCR 配置
+cat ~/.claude-code-router/config.json
+
+# 查看 Claude 配置
+cat .claude/settings.local.json
+
+# 或使用 doctor 命令
+ais doctor
+```
+
+**CCR Router 未安装**
+- 从 npm 安装：`npm install -g @musistudio/claude-code-router`
+- 访问项目页面：https://github.com/musistudio/claude-code-router
+
+**CCR Router 未重启**
+- 确保 CCR CLI 已安装并在 PATH 中可用
+- 如果自动重启失败，手动运行 `ccr restart`
+- 检查 CCR Router 是否运行：`ccr status`
+
+**Claude 未使用 CCR Router**
+- 验证 `.claude/settings.local.json` 中的 `ANTHROPIC_BASE_URL` 指向正确的端口
+- 检查 CCR Router 是否在配置的端口上运行
+- 配置更改后重启 Claude Code
 
 ### Droids 集成
 
@@ -706,6 +863,25 @@ ais current  # 应该显示你的账户
 MIT License - 欢迎在你的项目中使用此工具！
 
 ## 更新日志
+
+### v1.6.0
+- **CCR (Claude Code Router) 集成**：
+  - 完整支持 Claude Code Router
+  - 自动生成 `~/.claude-code-router/config.json` 配置
+  - Provider 和 Router 配置管理
+  - 配置更改后自动重启 CCR Router
+  - Claude Code 与本地 CCR Router 端点集成
+  - 支持 default、background 和 think 模型路由
+- **Web UI 增强**：
+  - 添加账户状态检查，带颜色指示器（绿色：可用，橙色：不稳定，红色：不可用）
+  - 状态结果会保存并在页面加载时显示
+  - 实时状态检查，带"状态检查"按钮
+  - 改进账户卡片布局，状态显示在右上角
+  - 状态检查期间增强视觉反馈
+- **配置改进**：
+  - CCR 账户自动生成 CCR 和 Claude 两种配置
+  - 从 CCR 配置动态读取端口用于 Claude 集成
+  - 更好的错误处理和用户反馈
 
 ### v1.5.7
 - **Droids 集成**：

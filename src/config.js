@@ -149,6 +149,10 @@ class ConfigManager {
     } else if (account.type === 'Droids') {
       // Droids type accounts only need Droids configuration
       this.generateDroidsConfig(account, projectRoot);
+    } else if (account.type === 'CCR') {
+      // CCR type accounts need both CCR and Claude configuration
+      this.generateCCRConfig(account, projectRoot);
+      this.generateClaudeConfigForCCR(account, projectRoot);
     } else {
       // Claude and other types need Claude Code configuration
       this.generateClaudeConfig(account, projectRoot);
@@ -384,6 +388,116 @@ class ConfigManager {
 
     // Write Droids configuration
     fs.writeFileSync(droidsConfigFile, JSON.stringify(droidsConfig, null, 2), 'utf8');
+  }
+
+  /**
+   * Generate CCR configuration in ~/.claude-code-router/config.json
+   */
+  generateCCRConfig(account, projectRoot = process.cwd()) {
+    const ccrConfigDir = path.join(os.homedir(), '.claude-code-router');
+    const ccrConfigFile = path.join(ccrConfigDir, 'config.json');
+
+    // Read existing config
+    let config = {};
+    if (fs.existsSync(ccrConfigFile)) {
+      const data = fs.readFileSync(ccrConfigFile, 'utf8');
+      config = JSON.parse(data);
+    }
+
+    if (!account.ccrConfig) return;
+
+    const { providerName, models, defaultModel, backgroundModel, thinkModel } = account.ccrConfig;
+
+    // Check if provider exists
+    const providerIndex = config.Providers?.findIndex(p => p.name === providerName);
+
+    const provider = {
+      api_base_url: account.apiUrl || '',
+      api_key: account.apiKey,
+      models: models,
+      name: providerName
+    };
+
+    if (providerIndex >= 0) {
+      config.Providers[providerIndex] = provider;
+    } else {
+      if (!config.Providers) config.Providers = [];
+      config.Providers.push(provider);
+    }
+
+    // Update Router configuration
+    if (!config.Router) config.Router = {};
+    config.Router.default = `${providerName},${defaultModel}`;
+    config.Router.background = `${providerName},${backgroundModel}`;
+    config.Router.think = `${providerName},${thinkModel}`;
+
+    fs.writeFileSync(ccrConfigFile, JSON.stringify(config, null, 2), 'utf8');
+  }
+
+  /**
+   * Generate Claude configuration for CCR type accounts
+   */
+  generateClaudeConfigForCCR(account, projectRoot = process.cwd()) {
+    const claudeDir = path.join(projectRoot, '.claude');
+    const claudeConfigFile = path.join(claudeDir, 'settings.local.json');
+    const ccrConfigFile = path.join(os.homedir(), '.claude-code-router', 'config.json');
+
+    // Create .claude directory if it doesn't exist
+    if (!fs.existsSync(claudeDir)) {
+      fs.mkdirSync(claudeDir, { recursive: true });
+    }
+
+    // Read CCR config to get PORT
+    let port = 3456; // default port
+    if (fs.existsSync(ccrConfigFile)) {
+      try {
+        const ccrConfig = JSON.parse(fs.readFileSync(ccrConfigFile, 'utf8'));
+        if (ccrConfig.PORT) {
+          port = ccrConfig.PORT;
+        }
+      } catch (e) {
+        // Use default port if reading fails
+      }
+    }
+
+    // Read existing config if it exists
+    let existingConfig = {};
+    if (fs.existsSync(claudeConfigFile)) {
+      try {
+        const data = fs.readFileSync(claudeConfigFile, 'utf8');
+        existingConfig = JSON.parse(data);
+      } catch (error) {
+        existingConfig = {};
+      }
+    }
+
+    const claudeConfig = {
+      ...existingConfig,
+      env: {
+        ...(existingConfig.env || {}),
+        ANTHROPIC_AUTH_TOKEN: account.apiKey,
+        ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}`
+      }
+    };
+
+    // Add custom environment variables if specified
+    if (account.customEnv && typeof account.customEnv === 'object') {
+      Object.keys(account.customEnv).forEach(key => {
+        claudeConfig.env[key] = account.customEnv[key];
+      });
+    }
+
+    // Preserve existing permissions if any
+    if (!claudeConfig.permissions) {
+      claudeConfig.permissions = existingConfig.permissions || {
+        allow: [],
+        deny: [],
+        ask: []
+      };
+    }
+
+    // Write Claude configuration
+    fs.writeFileSync(claudeConfigFile, JSON.stringify(claudeConfig, null, 2), 'utf8');
   }
 
   /**

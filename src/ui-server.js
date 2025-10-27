@@ -99,6 +99,8 @@ class UIServer {
       this.handleExportAll(req, res);
     } else if (pathname === '/api/import' && req.method === 'POST') {
       this.handleImportAccounts(req, res);
+    } else if (pathname.startsWith('/api/accounts/') && pathname.endsWith('/check') && req.method === 'POST') {
+      this.handleCheckAccount(req, res, pathname);
     } else {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Not found' }));
@@ -245,6 +247,146 @@ class UIServer {
         res.end(JSON.stringify({ error: error.message }));
       }
     });
+  }
+
+  handleCheckAccount(req, res, pathname) {
+    const name = decodeURIComponent(pathname.split('/api/accounts/')[1].replace('/check', ''));
+
+    const saveCheckResult = (status, error = null) => {
+      const account = this.config.getAccount(name);
+      if (account) {
+        account.lastCheck = {
+          status,
+          error,
+          timestamp: new Date().toISOString()
+        };
+        this.config.addAccount(name, account);
+      }
+    };
+
+    try {
+      const account = this.config.getAccount(name);
+      if (!account) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Account not found' }));
+        return;
+      }
+
+      // Basic check - if API key exists, consider it potentially available
+      if (!account.apiKey) {
+        saveCheckResult('unavailable', 'No API key configured');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          status: 'unavailable',
+          error: 'No API key configured'
+        }));
+        return;
+      }
+
+      // For now, just check if the configuration is complete
+      let status = 'available';
+
+      // Check if API URL is accessible (for CCR and custom endpoints)
+      if (account.apiUrl) {
+        const https = require('https');
+        const http = require('http');
+
+        try {
+          const url = new URL(account.apiUrl);
+          const client = url.protocol === 'https:' ? https : http;
+
+          const options = {
+            hostname: url.hostname,
+            port: url.port || (url.protocol === 'https:' ? 443 : 80),
+            path: '/',
+            method: 'HEAD',
+            timeout: 3000
+          };
+
+          let responded = false;
+
+          const request = client.request(options, (response) => {
+            if (responded) return;
+            responded = true;
+
+            if (response.statusCode >= 200 && response.statusCode < 500) {
+              status = 'available';
+            } else {
+              status = 'unstable';
+            }
+
+            saveCheckResult(status);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              success: true,
+              status,
+              statusCode: response.statusCode
+            }));
+          });
+
+          request.on('error', (error) => {
+            if (responded) return;
+            responded = true;
+
+            // Connection refused, host not found, etc. = unavailable
+            const isUnavailable = error.code === 'ECONNREFUSED' ||
+                                  error.code === 'ENOTFOUND' ||
+                                  error.code === 'EHOSTUNREACH';
+
+            const status = isUnavailable ? 'unavailable' : 'unstable';
+            saveCheckResult(status, error.message);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              success: true,
+              status,
+              error: error.message
+            }));
+          });
+
+          request.on('timeout', () => {
+            if (responded) return;
+            responded = true;
+
+            request.destroy();
+            saveCheckResult('unavailable', 'Connection timeout');
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              success: true,
+              status: 'unavailable',
+              error: 'Connection timeout'
+            }));
+          });
+
+          request.end();
+        } catch (e) {
+          saveCheckResult('available');
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: true,
+            status: 'available',
+            message: 'Configuration looks valid'
+          }));
+        }
+      } else {
+        // No API URL, just check if key exists
+        saveCheckResult('available');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          status: 'available',
+          message: 'Configuration looks valid'
+        }));
+      }
+    } catch (error) {
+      saveCheckResult('unavailable', error.message);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: true,
+        status: 'unavailable',
+        error: error.message
+      }));
+    }
   }
 
   getHTMLContent() {
@@ -532,6 +674,10 @@ class UIServer {
             border-left-color: #388e3c;
         }
 
+        .account-card.type-ccr {
+            border-left-color: #ff9800;
+        }
+
         .account-card.type-other {
             border-left-color: #f57c00;
         }
@@ -547,6 +693,12 @@ class UIServer {
             margin-bottom: 15px;
         }
 
+        .account-name-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         .account-name {
             font-size: 1.4rem;
             font-weight: 600;
@@ -559,6 +711,35 @@ class UIServer {
             border-radius: 4px;
             font-size: 12px;
             font-weight: 500;
+        }
+
+        .account-status-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .account-status {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .account-status.available {
+            background: #4CAF50;
+        }
+
+        .account-status.unstable {
+            background: #FF9800;
+        }
+
+        .account-status.unavailable {
+            background: #f44336;
+        }
+
+        .account-status.unknown {
+            background: #9E9E9E;
         }
 
         .account-type.type-claude {
@@ -576,9 +757,14 @@ class UIServer {
             color: #388e3c;
         }
 
-        .account-type.type-other {
+        .account-type.type-ccr {
             background: #fff3e0;
-            color: #f57c00;
+            color: #ff9800;
+        }
+
+        .account-type.type-other {
+            background: #fafafa;
+            color: #757575;
         }
 
         .account-info {
@@ -862,6 +1048,7 @@ class UIServer {
                     <option value="" data-i18n="allTypes">所有类型</option>
                     <option value="Claude">Claude</option>
                     <option value="Codex">Codex</option>
+                    <option value="CCR">CCR</option>
                     <option value="Droids">Droids</option>
                     <option value="Other" data-i18n="other">其他</option>
                 </select>
@@ -894,6 +1081,7 @@ class UIServer {
                     <select id="accountType" required onchange="toggleModelFields()">
                         <option value="Claude">Claude</option>
                         <option value="Codex">Codex</option>
+                        <option value="CCR">CCR</option>
                         <option value="Droids">Droids</option>
                         <option value="Other" data-i18n="other">其他</option>
                     </select>
@@ -932,6 +1120,25 @@ class UIServer {
                             <!-- Simple model field for Codex/Droids -->
                             <div id="simpleModelGroup" style="display: none;">
                                 <input type="text" id="simpleModel" data-i18n-placeholder="simpleModelPlaceholder" placeholder="例如: gpt-4, droids-model-v1">
+                            </div>
+                            <!-- CCR model fields -->
+                            <div id="ccrModelGroup" style="display: none;">
+                                <div style="margin-bottom: 10px;">
+                                    <label>Provider Name</label>
+                                    <input type="text" id="ccrProviderName" placeholder="例如: Local-new-api">
+                                </div>
+                                <div style="margin-bottom: 10px;">
+                                    <label>Default Model</label>
+                                    <input type="text" id="ccrDefaultModel" placeholder="例如: gemini-2.5-flash">
+                                </div>
+                                <div style="margin-bottom: 10px;">
+                                    <label>Background Model</label>
+                                    <input type="text" id="ccrBackgroundModel" placeholder="例如: gemini-2.5-flash">
+                                </div>
+                                <div style="margin-bottom: 10px;">
+                                    <label>Think Model</label>
+                                    <input type="text" id="ccrThinkModel" placeholder="例如: gemini-2.5-pro">
+                                </div>
                             </div>
                             <!-- Model groups for Claude -->
                             <div id="claudeModelGroup" style="display: none;">
@@ -1175,8 +1382,14 @@ class UIServer {
                 <div class="account-card \${typeClass}">
                     <div class="account-content">
                         <div class="account-header">
-                            <div class="account-name">\${name}</div>
-                            <div class="account-type \${typeClass}">\${data.type || 'N/A'}</div>
+                            <div class="account-name-wrapper">
+                                <div class="account-name">\${name}</div>
+                                <span class="account-type \${typeClass}">\${data.type || 'N/A'}</span>
+                            </div>
+                            <div class="account-status-wrapper">
+                                <span class="account-status \${data.lastCheck ? data.lastCheck.status : 'unknown'}" id="status_\${name}" title="\${data.lastCheck ? (data.lastCheck.status === 'available' ? '可用' : data.lastCheck.status === 'unstable' ? '不稳定' : '不可用') : '未检查'}"></span>
+                                <button class="btn btn-secondary btn-small" onclick="checkAccount('\${name}')" id="checkBtn_\${name}">状态检查</button>
+                            </div>
                         </div>
                         <div class="account-info">
                             <div class="info-label">\${t('apiKeyLabel')}</div>
@@ -1218,6 +1431,16 @@ class UIServer {
                             <div class="info-value">\${data.model}</div>
                         </div>
                         \` : ''}
+                        \${data.type === 'CCR' && data.ccrConfig ? \`
+                        <div class="account-info">
+                            <div class="info-label">CCR Provider</div>
+                            <div class="info-value">\${data.ccrConfig.providerName}</div>
+                        </div>
+                        <div class="account-info">
+                            <div class="info-label">Models</div>
+                            <div class="info-value">default: \${data.ccrConfig.defaultModel}, background: \${data.ccrConfig.backgroundModel}, think: \${data.ccrConfig.thinkModel}</div>
+                        </div>
+                        \` : ''}
                     </div>
                     <div class="account-actions">
                         <button class="btn btn-secondary btn-small" onclick="editAccount('\${name}')">\${t('edit')}</button>
@@ -1237,15 +1460,20 @@ class UIServer {
             const accountType = document.getElementById('accountType').value;
             const simpleModelGroup = document.getElementById('simpleModelGroup');
             const claudeModelGroup = document.getElementById('claudeModelGroup');
+            const ccrModelGroup = document.getElementById('ccrModelGroup');
 
             if (accountType === 'Codex' || accountType === 'Droids') {
-                // Show simple model field, hide Claude model groups
                 simpleModelGroup.style.display = 'block';
                 claudeModelGroup.style.display = 'none';
+                if (ccrModelGroup) ccrModelGroup.style.display = 'none';
+            } else if (accountType === 'CCR') {
+                simpleModelGroup.style.display = 'none';
+                claudeModelGroup.style.display = 'none';
+                if (ccrModelGroup) ccrModelGroup.style.display = 'block';
             } else {
-                // Show Claude model groups, hide simple model field
                 simpleModelGroup.style.display = 'none';
                 claudeModelGroup.style.display = 'block';
+                if (ccrModelGroup) ccrModelGroup.style.display = 'none';
             }
         }
 
@@ -1299,7 +1527,24 @@ class UIServer {
             if (account.type === 'Codex' || account.type === 'Droids') {
                 // Load simple model field
                 document.getElementById('simpleModel').value = account.model || '';
-                // Clear model groups
+                // Clear model groups and CCR config
+                document.getElementById('modelGroupsList').innerHTML = '';
+                modelGroupCount = 0;
+                activeModelGroup = null;
+                document.getElementById('ccrProviderName').value = '';
+                document.getElementById('ccrDefaultModel').value = '';
+                document.getElementById('ccrBackgroundModel').value = '';
+                document.getElementById('ccrThinkModel').value = '';
+            } else if (account.type === 'CCR') {
+                // Load CCR config
+                if (account.ccrConfig) {
+                    document.getElementById('ccrProviderName').value = account.ccrConfig.providerName || '';
+                    document.getElementById('ccrDefaultModel').value = account.ccrConfig.defaultModel || '';
+                    document.getElementById('ccrBackgroundModel').value = account.ccrConfig.backgroundModel || '';
+                    document.getElementById('ccrThinkModel').value = account.ccrConfig.thinkModel || '';
+                }
+                // Clear simple model and model groups
+                document.getElementById('simpleModel').value = '';
                 document.getElementById('modelGroupsList').innerHTML = '';
                 modelGroupCount = 0;
                 activeModelGroup = null;
@@ -1544,6 +1789,25 @@ class UIServer {
                 if (simpleModel) {
                     accountData.model = simpleModel;
                 }
+            } else if (accountType === 'CCR') {
+                // Collect CCR config
+                const providerName = document.getElementById('ccrProviderName').value.trim();
+                const defaultModel = document.getElementById('ccrDefaultModel').value.trim();
+                const backgroundModel = document.getElementById('ccrBackgroundModel').value.trim();
+                const thinkModel = document.getElementById('ccrThinkModel').value.trim();
+
+                if (providerName && defaultModel && backgroundModel && thinkModel) {
+                    const models = [defaultModel, backgroundModel, thinkModel];
+                    const uniqueModels = [...new Set(models)];
+
+                    accountData.ccrConfig = {
+                        providerName,
+                        models: uniqueModels,
+                        defaultModel,
+                        backgroundModel,
+                        thinkModel
+                    };
+                }
             } else {
                 // Collect model groups for Claude
                 accountData.modelGroups = {};
@@ -1691,6 +1955,47 @@ class UIServer {
             setTimeout(() => {
                 toast.remove();
             }, 3000);
+        }
+
+        async function checkAccount(name) {
+            const checkBtn = document.getElementById(\`checkBtn_\${name}\`);
+            const statusBadge = document.getElementById(\`status_\${name}\`);
+
+            if (!checkBtn || !statusBadge) return;
+
+            checkBtn.disabled = true;
+            checkBtn.textContent = '检查中...';
+            statusBadge.title = '检查中...';
+            statusBadge.className = 'account-status unknown';
+
+            try {
+                const response = await fetch(\`/api/accounts/\${encodeURIComponent(name)}/check\`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const statusMap = {
+                        'available': '可用',
+                        'unstable': '不稳定',
+                        'unavailable': '不可用'
+                    };
+
+                    statusBadge.title = statusMap[result.status] || '未知';
+                    statusBadge.className = \`account-status \${result.status}\`;
+                } else {
+                    statusBadge.title = '检查失败';
+                    statusBadge.className = 'account-status unavailable';
+                }
+            } catch (error) {
+                statusBadge.title = '检查失败';
+                statusBadge.className = 'account-status unavailable';
+                showToast('检查失败: ' + error.message, 'error');
+            } finally {
+                checkBtn.disabled = false;
+                checkBtn.textContent = '状态检查';
+            }
         }
 
         // Event listeners

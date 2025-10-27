@@ -13,7 +13,8 @@ A cross-platform CLI tool to manage and switch between Claude/Codex/Droids accou
 - **Claude Code Integration**: Automatically generates `.claude/settings.local.json` for Claude Code CLI
 - **Secure Storage**: Account credentials stored locally in your home directory
 - **Interactive CLI**: Easy-to-use interactive prompts for all operations
-- **Account Types**: Support for Claude, Codex, Droids, and other AI services
+- **Account Types**: Support for Claude, Codex, CCR (Claude Code Router), Droids, and other AI services
+- **Web UI**: Modern web interface with account status checking and management
 
 ## Installation
 
@@ -92,7 +93,7 @@ ais add my-claude-account
 ```
 
 You'll be prompted to enter:
-- Account type (Claude, Codex, Other)
+- Account type (Claude, Codex, CCR, Droids, Other)
 - API Key
 - API URL (optional)
 - Organization ID (optional)
@@ -328,6 +329,163 @@ grep -A 10 "$(cat .codex-profile)" ~/.codex/config.toml
 # Or use the doctor command
 ais doctor
 ```
+
+### CCR (Claude Code Router) Integration
+
+[Claude Code Router](https://github.com/musistudio/claude-code-router) is a powerful routing layer for Claude Code that allows you to use multiple AI providers and models seamlessly.
+
+When you add a **CCR** type account and run `ais use`, the tool automatically:
+1. Updates `~/.claude-code-router/config.json` with Provider and Router configuration
+2. Generates `.claude/settings.local.json` pointing to the local CCR Router
+3. Automatically restarts CCR Router to apply changes
+
+**Prerequisites:**
+- Install Claude Code Router: `npm install -g @musistudio/claude-code-router`
+- Start CCR Router: `ccr start`
+
+#### Adding a CCR Account
+
+When adding a CCR account, you'll see helpful configuration tips:
+
+```bash
+ais add my-ccr-account
+
+? Select account type: CCR
+
+📝 CCR Configuration Tips:
+   • CCR configuration will be stored in ~/.claude-code-router/config.json
+   • You need to provide Provider name and models
+   • Router configuration will be automatically updated
+
+? Enter API Key: sk-xxx...
+? Enter API URL: http://localhost:3000/v1/chat/completions
+? Enter Provider name: Local-new-api
+? Enter default model: gemini-2.5-flash
+? Enter background model: gemini-2.5-flash
+? Enter think model: gemini-2.5-pro
+```
+
+**Important Notes:**
+- Default API URL is `http://localhost:3000/v1/chat/completions`
+- You need to specify three models: default, background, and think
+- Models are automatically deduplicated in the Provider configuration
+
+#### Using CCR with Your Project
+
+After running `ais use` with a CCR account:
+
+```bash
+cd ~/my-project
+ais use my-ccr-account
+
+# Output:
+# ✓ Switched to account 'my-ccr-account' for current project.
+# 🔄 Restarting CCR Router...
+# ✓ CCR Router restarted successfully
+# ✓ CCR configuration updated at: ~/.claude-code-router/config.json
+# ✓ Claude configuration generated at: .claude/settings.local.json
+#
+# 📖 Next Steps:
+#    Start interactive session: claude
+#    This will enter project-level interactive mode
+#    Claude Code will use CCR Router to route requests
+```
+
+The tool:
+1. **Updates CCR Config**: Adds/updates Provider in `~/.claude-code-router/config.json`
+2. **Updates Router**: Sets default, background, and think models
+3. **Generates Claude Config**: Creates `.claude/settings.local.json` with `ANTHROPIC_BASE_URL` pointing to CCR Router
+4. **Restarts CCR**: Automatically runs `ccr restart` to apply changes
+
+#### Running Claude with CCR
+
+Start Claude interactive session:
+
+```bash
+# In your project directory
+claude
+
+# Claude Code will automatically use CCR Router
+# Requests are routed based on your CCR configuration
+```
+
+#### CCR Configuration Structure
+
+The generated configuration in `~/.claude-code-router/config.json`:
+
+```json
+{
+  "PORT": 3456,
+  "Providers": [
+    {
+      "api_base_url": "http://localhost:3000/v1/chat/completions",
+      "api_key": "sk-xxx...",
+      "models": ["gemini-2.5-flash", "gemini-2.5-pro"],
+      "name": "Local-new-api"
+    }
+  ],
+  "Router": {
+    "default": "Local-new-api,gemini-2.5-flash",
+    "background": "Local-new-api,gemini-2.5-flash",
+    "think": "Local-new-api,gemini-2.5-pro"
+  }
+}
+```
+
+The generated configuration in `.claude/settings.local.json`:
+
+```json
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "your-api-key",
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:3456"
+  }
+}
+```
+
+#### Switching Between Projects
+
+Each project can use a different CCR configuration:
+
+```bash
+# Project A
+cd ~/project-a
+ais use ccr-account-1
+claude
+
+# Project B
+cd ~/project-b
+ais use ccr-account-2
+claude
+```
+
+#### Troubleshooting CCR
+
+**Check CCR Configuration**
+```bash
+# View your CCR configuration
+cat ~/.claude-code-router/config.json
+
+# View Claude configuration
+cat .claude/settings.local.json
+
+# Or use the doctor command
+ais doctor
+```
+
+**CCR Router not installed**
+- Install from npm: `npm install -g @musistudio/claude-code-router`
+- Visit the project page: https://github.com/musistudio/claude-code-router
+
+**CCR Router not restarting**
+- Make sure CCR CLI is installed and available in your PATH
+- Run `ccr restart` manually if automatic restart fails
+- Check if CCR Router is running: `ccr status`
+
+**Claude not using CCR Router**
+- Verify `ANTHROPIC_BASE_URL` in `.claude/settings.local.json` points to correct port
+- Check CCR Router is running on the configured port
+- Restart Claude Code after configuration changes
 
 ### Droids Integration
 
@@ -629,6 +787,25 @@ Contributions are welcome! Feel free to:
 MIT License - feel free to use this tool in your projects!
 
 ## Changelog
+
+### v1.6.0
+- **CCR (Claude Code Router) Integration**:
+  - Added full support for Claude Code Router
+  - Automatic generation of `~/.claude-code-router/config.json` configuration
+  - Provider and Router configuration management
+  - Automatic CCR Router restart after configuration changes
+  - Claude Code integration with local CCR Router endpoint
+  - Support for default, background, and think model routing
+- **Web UI Enhancements**:
+  - Added account status checking with color-coded indicators (green: available, orange: unstable, red: unavailable)
+  - Status results are saved and displayed on page load
+  - Real-time status checking with "状态检查" button
+  - Improved account card layout with status in top-right corner
+  - Enhanced visual feedback during status checks
+- **Configuration Improvements**:
+  - CCR accounts automatically generate both CCR and Claude configurations
+  - Dynamic port reading from CCR config for Claude integration
+  - Better error handling and user feedback
 
 ### v1.5.8
 - **Bilingual Support (双语支持)**:
