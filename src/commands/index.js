@@ -29,6 +29,19 @@ const {
   startUI
 } = require('./utility');
 
+const {
+  addMcpServer,
+  listMcpServers,
+  showMcpServer,
+  updateMcpServer,
+  removeMcpServer,
+  enableMcpServer,
+  disableMcpServer,
+  showEnabledMcpServers,
+  syncMcpConfig,
+  testMcpServer
+} = require('./mcp');
+
 module.exports = {
   // Account management commands
   addAccount,
@@ -49,5 +62,17 @@ module.exports = {
   // Utility commands
   showPaths,
   doctor,
-  startUI
+  startUI,
+
+  // MCP management commands
+  addMcpServer,
+  listMcpServers,
+  showMcpServer,
+  updateMcpServer,
+  removeMcpServer,
+  enableMcpServer,
+  disableMcpServer,
+  showEnabledMcpServers,
+  syncMcpConfig,
+  testMcpServer
 };

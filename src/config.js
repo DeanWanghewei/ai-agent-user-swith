@@ -30,7 +30,7 @@ class ConfigManager {
 
     // Create global config file if it doesn't exist
     if (!fs.existsSync(this.globalConfigFile)) {
-      this.saveGlobalConfig({ accounts: {} });
+      this.saveGlobalConfig({ accounts: {}, mcpServers: {} });
     }
   }
 
@@ -68,7 +68,7 @@ class ConfigManager {
       const data = fs.readFileSync(this.globalConfigFile, 'utf8');
       return JSON.parse(data);
     } catch (error) {
-      return { accounts: {} };
+      return { accounts: {}, mcpServers: {} };
     }
   }
 
@@ -134,10 +134,22 @@ class ConfigManager {
     const projectRoot = process.cwd();
     const projectConfigFile = path.join(projectRoot, this.projectConfigFilename);
 
+    // Read existing project config to preserve enabledMcpServers
+    let existingConfig = {};
+    if (fs.existsSync(projectConfigFile)) {
+      try {
+        const data = fs.readFileSync(projectConfigFile, 'utf8');
+        existingConfig = JSON.parse(data);
+      } catch (error) {
+        // If parsing fails, start fresh
+      }
+    }
+
     const projectConfig = {
       activeAccount: accountName,
       projectPath: projectRoot,
-      setAt: new Date().toISOString()
+      setAt: new Date().toISOString(),
+      enabledMcpServers: existingConfig.enabledMcpServers || []
     };
 
     fs.writeFileSync(projectConfigFile, JSON.stringify(projectConfig, null, 2), 'utf8');
@@ -155,7 +167,7 @@ class ConfigManager {
       this.generateClaudeConfigForCCR(account, projectRoot);
     } else {
       // Claude and other types need Claude Code configuration
-      this.generateClaudeConfig(account, projectRoot);
+      this.generateClaudeConfigWithMcp(account, projectRoot);
     }
 
     // Add to .gitignore if git is initialized
@@ -643,6 +655,494 @@ class ConfigManager {
       project: this.projectConfigFile,
       globalDir: this.globalConfigDir
     };
+  }
+
+  /**
+   * Add or update an MCP server
+   */
+  addMcpServer(name, serverData) {
+    const config = this.readGlobalConfig();
+    if (!config.mcpServers) config.mcpServers = {};
+    config.mcpServers[name] = {
+      ...serverData,
+      createdAt: config.mcpServers[name]?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    this.saveGlobalConfig(config);
+    return true;
+  }
+
+  /**
+   * Get all MCP servers
+   */
+  getAllMcpServers() {
+    const config = this.readGlobalConfig();
+    return config.mcpServers || {};
+  }
+
+  /**
+   * Get a specific MCP server
+   */
+  getMcpServer(name) {
+    const servers = this.getAllMcpServers();
+    return servers[name] || null;
+  }
+
+  /**
+   * Update an MCP server
+   */
+  updateMcpServer(name, serverData) {
+    const config = this.readGlobalConfig();
+    if (!config.mcpServers || !config.mcpServers[name]) return false;
+    config.mcpServers[name] = {
+      ...serverData,
+      createdAt: config.mcpServers[name].createdAt,
+      updatedAt: new Date().toISOString()
+    };
+    this.saveGlobalConfig(config);
+    return true;
+  }
+
+  /**
+   * Check if MCP server is enabled in current project
+   */
+  isMcpServerEnabledInCurrentProject(serverName) {
+    try {
+      const projectRoot = this.findProjectRoot();
+      if (!projectRoot) return false;
+
+      const projectConfigFile = path.join(projectRoot, this.projectConfigFilename);
+      if (!fs.existsSync(projectConfigFile)) return false;
+
+      const data = fs.readFileSync(projectConfigFile, 'utf8');
+      const projectConfig = JSON.parse(data);
+
+      return projectConfig.enabledMcpServers &&
+             projectConfig.enabledMcpServers.includes(serverName);
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Remove MCP server from current project's enabled list
+   */
+  removeMcpServerFromCurrentProject(serverName) {
+    try {
+      const projectRoot = this.findProjectRoot();
+      if (!projectRoot) return false;
+
+      const projectConfigFile = path.join(projectRoot, this.projectConfigFilename);
+      if (!fs.existsSync(projectConfigFile)) return false;
+
+      const data = fs.readFileSync(projectConfigFile, 'utf8');
+      const projectConfig = JSON.parse(data);
+
+      if (!projectConfig.enabledMcpServers) return false;
+
+      const index = projectConfig.enabledMcpServers.indexOf(serverName);
+      if (index > -1) {
+        projectConfig.enabledMcpServers.splice(index, 1);
+        fs.writeFileSync(projectConfigFile, JSON.stringify(projectConfig, null, 2), 'utf8');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Remove an MCP server
+   */
+  removeMcpServer(name) {
+    const config = this.readGlobalConfig();
+    if (config.mcpServers && config.mcpServers[name]) {
+      delete config.mcpServers[name];
+      this.saveGlobalConfig(config);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get project MCP configuration
+   */
+  getProjectMcpServers() {
+    try {
+      const projectRoot = this.findProjectRoot();
+      if (!projectRoot) return [];
+      const projectConfigFile = path.join(projectRoot, this.projectConfigFilename);
+      if (!fs.existsSync(projectConfigFile)) return [];
+      const data = fs.readFileSync(projectConfigFile, 'utf8');
+      const projectConfig = JSON.parse(data);
+      return projectConfig.enabledMcpServers || [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
+   * Enable MCP server for current project
+   */
+  enableProjectMcpServer(serverName) {
+    const server = this.getMcpServer(serverName);
+    if (!server) return false;
+
+    const projectRoot = this.findProjectRoot();
+    if (!projectRoot) {
+      throw new Error('Not in a configured project directory. Run "ais use" first.');
+    }
+
+    const projectConfigFile = path.join(projectRoot, this.projectConfigFilename);
+    if (!fs.existsSync(projectConfigFile)) {
+      throw new Error('Project not configured. Run "ais use" first.');
+    }
+
+    try {
+      const data = fs.readFileSync(projectConfigFile, 'utf8');
+      const projectConfig = JSON.parse(data);
+
+      if (!projectConfig.enabledMcpServers) projectConfig.enabledMcpServers = [];
+      if (!projectConfig.enabledMcpServers.includes(serverName)) {
+        projectConfig.enabledMcpServers.push(serverName);
+        fs.writeFileSync(projectConfigFile, JSON.stringify(projectConfig, null, 2), 'utf8');
+      }
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to enable MCP server: ${error.message}`);
+    }
+  }
+
+  /**
+   * Disable MCP server for current project
+   */
+  disableProjectMcpServer(serverName) {
+    const projectRoot = this.findProjectRoot();
+    if (!projectRoot) {
+      throw new Error('Not in a configured project directory.');
+    }
+
+    const projectConfigFile = path.join(projectRoot, this.projectConfigFilename);
+    if (!fs.existsSync(projectConfigFile)) {
+      throw new Error('Project not configured. Run "ais use" first.');
+    }
+
+    try {
+      const data = fs.readFileSync(projectConfigFile, 'utf8');
+      const projectConfig = JSON.parse(data);
+
+      if (!projectConfig.enabledMcpServers) return false;
+
+      const index = projectConfig.enabledMcpServers.indexOf(serverName);
+      if (index > -1) {
+        projectConfig.enabledMcpServers.splice(index, 1);
+        fs.writeFileSync(projectConfigFile, JSON.stringify(projectConfig, null, 2), 'utf8');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      throw new Error(`Failed to disable MCP server: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get enabled MCP servers for current project
+   */
+  getEnabledMcpServers() {
+    return this.getProjectMcpServers();
+  }
+
+  /**
+   * Get Claude Code user config path (cross-platform)
+   */
+  getClaudeUserConfigPath() {
+    const platform = process.platform;
+    const home = process.env.HOME || process.env.USERPROFILE;
+
+    if (!home) return null;
+
+    // Try common locations
+    const locations = [
+      path.join(home, '.claude.json'),
+      path.join(home, '.config', 'claude', 'config.json')
+    ];
+
+    for (const loc of locations) {
+      if (fs.existsSync(loc)) {
+        return loc;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Import MCP servers from Claude user config (~/.claude.json)
+   */
+  importMcpServersFromClaudeConfig(projectRoot) {
+    const claudeConfigPath = this.getClaudeUserConfigPath();
+    if (!claudeConfigPath) {
+      return { imported: [], fromUserConfig: [], fromProjectConfig: [] };
+    }
+
+    try {
+      const data = fs.readFileSync(claudeConfigPath, 'utf8');
+      const claudeConfig = JSON.parse(data);
+
+      const imported = [];
+      const fromUserConfig = [];
+      const fromProjectConfig = [];
+      const allServers = this.getAllMcpServers();
+
+      // Import from user-level MCP servers
+      if (claudeConfig.mcpServers && typeof claudeConfig.mcpServers === 'object') {
+        Object.entries(claudeConfig.mcpServers).forEach(([name, serverConfig]) => {
+          if (!allServers[name]) {
+            const aisServerData = {
+              name: name,
+              ...serverConfig,
+              description: serverConfig.description || 'Imported from Claude user config'
+            };
+
+            // Ensure type is set
+            if (!aisServerData.type) {
+              if (aisServerData.command) {
+                aisServerData.type = 'stdio';
+              } else if (aisServerData.url) {
+                aisServerData.type = 'http';
+              }
+            }
+
+            this.addMcpServer(name, aisServerData);
+            imported.push(name);
+            fromUserConfig.push(name);
+          }
+        });
+      }
+
+      // Import from project-specific MCP servers in Claude config
+      if (claudeConfig.projects && projectRoot) {
+        const projectConfig = claudeConfig.projects[projectRoot];
+        if (projectConfig && projectConfig.mcpServers && typeof projectConfig.mcpServers === 'object') {
+          Object.entries(projectConfig.mcpServers).forEach(([name, serverConfig]) => {
+            if (!allServers[name]) {
+              const aisServerData = {
+                name: name,
+                ...serverConfig,
+                description: serverConfig.description || 'Imported from Claude project config'
+              };
+
+              // Ensure type is set
+              if (!aisServerData.type) {
+                if (aisServerData.command) {
+                  aisServerData.type = 'stdio';
+                } else if (aisServerData.url) {
+                  aisServerData.type = 'http';
+                }
+              }
+
+              this.addMcpServer(name, aisServerData);
+              imported.push(name);
+              fromProjectConfig.push(name);
+            }
+          });
+        }
+      }
+
+      return { imported, fromUserConfig, fromProjectConfig };
+    } catch (error) {
+      console.warn(`Warning: Could not import from Claude config: ${error.message}`);
+      return { imported: [], fromUserConfig: [], fromProjectConfig: [] };
+    }
+  }
+
+  /**
+   * Import MCP servers from .mcp.json to AIS global config
+   * Returns array of imported server names
+   */
+  importMcpServersFromFile(projectRoot) {
+    const mcpJsonFile = path.join(projectRoot, '.mcp.json');
+    if (!fs.existsSync(mcpJsonFile)) {
+      return { imported: [], enabled: [] };
+    }
+
+    try {
+      const data = fs.readFileSync(mcpJsonFile, 'utf8');
+      const mcpJson = JSON.parse(data);
+
+      if (!mcpJson.mcpServers || typeof mcpJson.mcpServers !== 'object') {
+        return { imported: [], enabled: [] };
+      }
+
+      const imported = [];
+      const enabled = [];
+      const allServers = this.getAllMcpServers();
+
+      Object.entries(mcpJson.mcpServers).forEach(([name, serverConfig]) => {
+        // Check if server already exists in AIS config
+        if (!allServers[name]) {
+          // Import server to AIS config
+          const aisServerData = {
+            name: name,
+            ...serverConfig,
+            description: serverConfig.description || 'Imported from .mcp.json'
+          };
+
+          // Ensure type is set
+          if (!aisServerData.type) {
+            if (aisServerData.command) {
+              aisServerData.type = 'stdio';
+            } else if (aisServerData.url) {
+              aisServerData.type = 'http';
+            }
+          }
+
+          this.addMcpServer(name, aisServerData);
+          imported.push(name);
+        }
+        enabled.push(name);
+      });
+
+      // Update project's enabled servers list
+      if (enabled.length > 0) {
+        const projectConfigFile = path.join(projectRoot, this.projectConfigFilename);
+        const projectData = fs.readFileSync(projectConfigFile, 'utf8');
+        const projectConfig = JSON.parse(projectData);
+
+        // Merge with existing enabled servers (deduplicate)
+        const currentEnabled = projectConfig.enabledMcpServers || [];
+        const mergedEnabled = [...new Set([...currentEnabled, ...enabled])];
+
+        if (JSON.stringify(currentEnabled.sort()) !== JSON.stringify(mergedEnabled.sort())) {
+          projectConfig.enabledMcpServers = mergedEnabled;
+          fs.writeFileSync(projectConfigFile, JSON.stringify(projectConfig, null, 2), 'utf8');
+        }
+      }
+
+      return { imported, enabled };
+    } catch (error) {
+      console.warn(`Warning: Could not import from .mcp.json: ${error.message}`);
+      return { imported: [], enabled: [] };
+    }
+  }
+
+  /**
+   * Sync MCP configuration (bidirectional)
+   * - Import servers from Claude user config (~/.claude.json) to AIS config
+   * - Import servers from .mcp.json to AIS config
+   * - Export enabled servers from AIS config to .mcp.json
+   */
+  syncMcpConfig() {
+    const projectRoot = this.findProjectRoot();
+    if (!projectRoot) {
+      throw new Error('Not in a project directory');
+    }
+
+    const projectConfigFile = path.join(projectRoot, this.projectConfigFilename);
+    if (!fs.existsSync(projectConfigFile)) {
+      throw new Error('Project not configured. Run "ais use" first');
+    }
+
+    try {
+      // Step 1: Import servers from Claude user config
+      const claudeImport = this.importMcpServersFromClaudeConfig(projectRoot);
+
+      // Step 2: Import servers from .mcp.json to AIS config
+      const fileImport = this.importMcpServersFromFile(projectRoot);
+
+      // Step 3: Get account and generate .mcp.json
+      const projectData = fs.readFileSync(projectConfigFile, 'utf8');
+      const projectConfig = JSON.parse(projectData);
+      const account = this.getAccount(projectConfig.activeAccount);
+
+      if (!account) {
+        throw new Error('Account not found');
+      }
+
+      this.generateClaudeConfigWithMcp(account, projectRoot);
+
+      // Combine results
+      const allImported = [
+        ...claudeImport.imported,
+        ...fileImport.imported
+      ];
+
+      return {
+        imported: allImported,
+        fromClaudeUserConfig: claudeImport.fromUserConfig,
+        fromClaudeProjectConfig: claudeImport.fromProjectConfig,
+        fromMcpJson: fileImport.imported,
+        enabled: fileImport.enabled
+      };
+    } catch (error) {
+      throw new Error(`Failed to sync MCP configuration: ${error.message}`);
+    }
+  }
+
+  /**
+   * Generate Claude Code configuration with MCP servers
+   */
+  generateClaudeConfigWithMcp(account, projectRoot = process.cwd()) {
+    try {
+      // First generate base Claude configuration
+      this.generateClaudeConfig(account, projectRoot);
+
+      // Then generate .mcp.json for MCP servers configuration
+      const mcpConfigFile = path.join(projectRoot, '.mcp.json');
+
+      // Get enabled MCP servers
+      const enabledServers = this.getEnabledMcpServers();
+      const allServers = this.getAllMcpServers();
+
+      if (enabledServers.length > 0) {
+        const mcpConfig = {
+          mcpServers: {}
+        };
+
+        enabledServers.forEach(serverName => {
+          const server = allServers[serverName];
+          if (server) {
+            const serverConfig = {};
+
+            // For stdio type MCP servers
+            if (server.type === 'stdio' && server.command) {
+              serverConfig.command = server.command;
+              if (server.args) serverConfig.args = server.args;
+              if (server.env) serverConfig.env = server.env;
+            }
+            // For http/sse type MCP servers
+            else if ((server.type === 'http' || server.type === 'sse') && server.url) {
+              serverConfig.type = server.type;
+              serverConfig.url = server.url;
+              if (server.headers) serverConfig.headers = server.headers;
+            }
+            // Legacy support: infer type from fields
+            else if (server.command) {
+              serverConfig.command = server.command;
+              if (server.args) serverConfig.args = server.args;
+              if (server.env) serverConfig.env = server.env;
+            } else if (server.url) {
+              // Default to http if type not specified
+              serverConfig.type = server.type || 'http';
+              serverConfig.url = server.url;
+              if (server.headers) serverConfig.headers = server.headers;
+            }
+
+            mcpConfig.mcpServers[serverName] = serverConfig;
+          }
+        });
+
+        fs.writeFileSync(mcpConfigFile, JSON.stringify(mcpConfig, null, 2), 'utf8');
+      } else {
+        // Remove .mcp.json if no servers are enabled
+        if (fs.existsSync(mcpConfigFile)) {
+          fs.unlinkSync(mcpConfigFile);
+        }
+      }
+    } catch (error) {
+      throw new Error(`Failed to generate Claude config with MCP: ${error.message}`);
+    }
   }
 }
 

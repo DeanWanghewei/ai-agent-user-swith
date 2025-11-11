@@ -17,7 +17,17 @@ const {
   addModelGroup,
   useModelGroup,
   removeModelGroup,
-  showModelGroup
+  showModelGroup,
+  addMcpServer,
+  listMcpServers,
+  showMcpServer,
+  updateMcpServer,
+  removeMcpServer,
+  enableMcpServer,
+  disableMcpServer,
+  showEnabledMcpServers,
+  syncMcpConfig,
+  testMcpServer
 } = require('./commands');
 
 // Package info
@@ -122,6 +132,63 @@ modelCommand
   .description('Show model group configuration (显示模型组配置)')
   .action(showModelGroup);
 
+// MCP management commands
+const mcpCommand = program
+  .command('mcp')
+  .description('Manage MCP (Model Context Protocol) servers (管理 MCP 服务器)');
+
+mcpCommand
+  .command('add [name]')
+  .description('Add a new MCP server (添加新的 MCP 服务器)')
+  .action(addMcpServer);
+
+mcpCommand
+  .command('list')
+  .alias('ls')
+  .description('List all MCP servers (列出所有 MCP 服务器)')
+  .action(listMcpServers);
+
+mcpCommand
+  .command('show [name]')
+  .description('Show MCP server details (显示 MCP 服务器详情)')
+  .action(showMcpServer);
+
+mcpCommand
+  .command('update [name]')
+  .description('Update MCP server configuration (更新 MCP 服务器配置)')
+  .action(updateMcpServer);
+
+mcpCommand
+  .command('remove [name]')
+  .alias('rm')
+  .description('Remove an MCP server (删除 MCP 服务器)')
+  .action(removeMcpServer);
+
+mcpCommand
+  .command('enable [name]')
+  .description('Activate MCP server for current project (为当前项目激活 MCP 服务器)')
+  .action(enableMcpServer);
+
+mcpCommand
+  .command('disable [name]')
+  .description('Deactivate MCP server for current project (为当前项目停用 MCP 服务器)')
+  .action(disableMcpServer);
+
+mcpCommand
+  .command('enabled')
+  .description('Show active MCP servers for current project (显示当前项目激活的 MCP 服务器)')
+  .action(showEnabledMcpServers);
+
+mcpCommand
+  .command('sync')
+  .description('Sync MCP configuration (bidirectional: import from .mcp.json and export to .mcp.json) (双向同步 MCP 配置)')
+  .action(syncMcpConfig);
+
+mcpCommand
+  .command('test [name]')
+  .description('Test MCP server availability (测试 MCP 服务器可用性)')
+  .action(testMcpServer);
+
 // Help command
 program
   .command('help')
@@ -142,6 +209,8 @@ program
     console.log('  doctor           Diagnose Claude Code configuration issues (诊断 Claude Code 配置问题)');
     console.log('  export <name>    Export account as JSON (导出账号为 JSON)');
     console.log('  ui               Start web-based account manager UI (启动基于 Web 的账号管理界面)');
+    console.log('  model            Manage model groups (管理模型组)');
+    console.log('  mcp              Manage MCP servers (管理 MCP 服务器)');
     console.log('  help             Display this help message (显示此帮助信息)');
     console.log('  version          Show version number (显示版本号)\n');
 

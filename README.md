@@ -69,6 +69,15 @@ npm link
 | `ais model use <name>` | - | Switch to a different model group |
 | `ais model remove [name]` | `rm` | Remove a model group |
 | `ais model show [name]` | - | Show model group configuration |
+| `ais mcp add [name]` | - | Add a new MCP server |
+| `ais mcp list` | `ls` | List all MCP servers |
+| `ais mcp show [name]` | - | Show MCP server details |
+| `ais mcp update [name]` | - | Update MCP server configuration |
+| `ais mcp remove [name]` | `rm` | Remove an MCP server |
+| `ais mcp enable [name]` | - | Enable MCP server for current project |
+| `ais mcp disable [name]` | - | Disable MCP server for current project |
+| `ais mcp enabled` | - | Show enabled MCP servers |
+| `ais mcp sync` | - | Sync MCP configuration to Claude Code |
 | `ais ui` | - | Start web-based UI manager |
 | `ais paths` | - | Show configuration file paths |
 | `ais doctor` | - | Diagnose configuration issues |
@@ -616,6 +625,152 @@ You can add custom environment variables when creating an account. When prompted
 - Press Enter without input to finish
 - Variables are automatically included in `.claude/settings.local.json`
 
+### MCP (Model Context Protocol) Integration
+
+AIS supports managing MCP servers globally and enabling them per project. MCP servers extend Claude Code with additional tools and capabilities.
+
+#### Adding an MCP Server
+
+Add a new MCP server interactively:
+
+```bash
+ais mcp add filesystem
+```
+
+You'll be prompted to configure:
+- **Server type**: stdio, sse, or http
+- **Command and arguments** (for stdio type)
+- **URL** (for sse/http types)
+- **Environment variables** (optional)
+- **Headers** (optional for sse/http)
+- **Description** (optional)
+
+**Example: Adding a stdio MCP server**
+```bash
+$ ais mcp add filesystem
+? Select MCP server type: stdio
+? Enter command: npx
+? Enter arguments (comma-separated): @modelcontextprotocol/server-filesystem,/Users/user/workspace
+? Add environment variables? Yes
+? Environment variable (KEY=VALUE): ALLOWED_PATHS=/Users/user/workspace
+? Add another? No
+? Enter description: File system access MCP server
+✓ MCP server 'filesystem' added successfully!
+```
+
+#### Listing MCP Servers
+
+View all configured MCP servers:
+
+```bash
+ais mcp list
+```
+
+Output shows server name, type, enabled status, and description.
+
+#### Enabling MCP Servers for a Project
+
+Enable an MCP server for the current project:
+
+```bash
+cd ~/my-project
+ais mcp enable filesystem
+```
+
+This will:
+1. Add the server to the project's enabled list
+2. Update `.claude/settings.local.json` with the MCP configuration
+3. Make the MCP server available to Claude Code in this project
+
+#### Managing MCP Servers
+
+```bash
+# Show MCP server details
+ais mcp show filesystem
+
+# Update MCP server configuration
+ais mcp update filesystem
+
+# Disable MCP server for current project
+ais mcp disable filesystem
+
+# Show enabled MCP servers for current project
+ais mcp enabled
+
+# Sync MCP configuration to Claude Code
+ais mcp sync
+
+# Remove an MCP server
+ais mcp remove filesystem
+```
+
+#### MCP Configuration Structure
+
+MCP servers are stored globally in `~/.ai-account-switch/config.json`:
+
+```json
+{
+  "accounts": { ... },
+  "mcpServers": {
+    "filesystem": {
+      "name": "filesystem",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem", "/Users/user/workspace"],
+      "env": {
+        "ALLOWED_PATHS": "/Users/user/workspace"
+      },
+      "description": "File system access MCP server",
+      "createdAt": "2025-01-03T00:00:00.000Z",
+      "updatedAt": "2025-01-03T00:00:00.000Z"
+    }
+  }
+}
+```
+
+Project-level enabled servers are stored in `.ais-project-config`:
+
+```json
+{
+  "activeAccount": "my-account",
+  "projectPath": "/path/to/project",
+  "setAt": "2025-01-03T00:00:00.000Z",
+  "enabledMcpServers": ["filesystem"]
+}
+```
+
+When enabled, MCP servers are automatically added to `.claude/settings.local.json`:
+
+```json
+{
+  "env": { ... },
+  "permissions": { ... },
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem", "/Users/user/workspace"],
+      "env": {
+        "ALLOWED_PATHS": "/Users/user/workspace"
+      }
+    }
+  }
+}
+```
+
+#### MCP Server Types
+
+**stdio**: Communicates via standard input/output
+- Requires: `command`, `args`
+- Optional: `env`
+
+**sse**: Server-Sent Events
+- Requires: `url`
+- Optional: `headers`
+
+**http**: HTTP requests
+- Requires: `url`
+- Optional: `headers`
+
 ## Examples
 
 ### Example 1: Setting Up Multiple Accounts
@@ -787,6 +942,18 @@ Contributions are welcome! Feel free to:
 MIT License - feel free to use this tool in your projects!
 
 ## Changelog
+
+### v1.7.0
+- **MCP (Model Context Protocol) Integration**:
+  - Global MCP server management with `ais mcp` commands
+  - Project-level MCP server enable/disable functionality
+  - Support for stdio, sse, and http MCP server types
+  - Automatic Claude Code configuration generation with MCP servers
+  - Commands: `ais mcp add`, `ais mcp list`, `ais mcp show`, `ais mcp update`, `ais mcp remove`
+  - Project commands: `ais mcp enable`, `ais mcp disable`, `ais mcp enabled`, `ais mcp sync`
+  - Interactive MCP server configuration with validation
+  - Environment variables and headers support for MCP servers
+  - Seamless integration with existing account management
 
 ### v1.6.0
 - **CCR (Claude Code Router) Integration**:
