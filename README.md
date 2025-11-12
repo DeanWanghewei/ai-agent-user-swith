@@ -1,6 +1,6 @@
 # AI Account Switch (ais)
 
-English | [简体中文](README_ZH.md)
+[简体中文](README_ZH.md) | English
 
 A cross-platform CLI tool to manage and switch between Claude/Codex/Droids account configurations for different projects.
 
@@ -15,6 +15,13 @@ A cross-platform CLI tool to manage and switch between Claude/Codex/Droids accou
 - **Interactive CLI**: Easy-to-use interactive prompts for all operations
 - **Account Types**: Support for Claude, Codex, CCR (Claude Code Router), Droids, and other AI services
 - **Web UI**: Modern web interface with account status checking and management
+- **MCP Web UI Management**: Complete MCP (Model Context Protocol) server management through Web UI
+  - Add, edit, delete MCP servers with intuitive interface
+  - Support for stdio, sse, and http server types
+  - Test MCP server connections
+  - Enable/disable servers per project
+  - Search and filter functionality
+  - Full internationalization (Chinese/English)
 
 ## Installation
 
@@ -629,7 +636,54 @@ You can add custom environment variables when creating an account. When prompted
 
 AIS supports managing MCP servers globally and enabling them per project. MCP servers extend Claude Code with additional tools and capabilities.
 
-#### Adding an MCP Server
+You can manage MCP servers through both **CLI commands** and **Web UI**.
+
+#### Web UI Management (Recommended)
+
+The easiest way to manage MCP servers is through the Web UI:
+
+```bash
+ais ui
+```
+
+Then click on the **"MCP 服务器" (MCP Servers)** tab to:
+
+**Features:**
+- ✅ **Add MCP Servers**: Click "+ 添加 MCP 服务器" to add new servers
+  - Choose server type: stdio, sse, or http
+  - Fill in configuration (command, URL, environment variables, etc.)
+  - Add description for easy identification
+- ✅ **Edit Servers**: Click "编辑" to modify existing server configurations
+- ✅ **Test Connection**: Click "测试连接" to verify server availability
+- ✅ **Enable/Disable**: Toggle servers for the current project with one click
+- ✅ **Search & Filter**: Quickly find servers by name or type
+- ✅ **Delete Servers**: Remove servers you no longer need
+- ✅ **Sync Configuration**: Click "同步配置" to sync to Claude Code
+
+**Benefits:**
+- Intuitive visual interface
+- Real-time validation
+- No need to remember command syntax
+- See all servers at a glance
+- Status indicators (enabled/disabled)
+- Supports Chinese and English
+
+**Example Workflow:**
+1. Start Web UI: `ais ui`
+2. Click "MCP 服务器" tab
+3. Click "+ 添加 MCP 服务器"
+4. Select type: "stdio"
+5. Enter command: "npx"
+6. Enter arguments: "@modelcontextprotocol/server-filesystem,/path"
+7. Click "保存"
+8. Click "测试连接" to verify
+9. Click "启用" to enable for current project
+
+#### CLI Management
+
+You can also manage MCP servers through CLI commands:
+
+##### Adding an MCP Server
 
 Add a new MCP server interactively:
 
@@ -658,7 +712,7 @@ $ ais mcp add filesystem
 ✓ MCP server 'filesystem' added successfully!
 ```
 
-#### Listing MCP Servers
+##### Listing MCP Servers
 
 View all configured MCP servers:
 
@@ -668,7 +722,7 @@ ais mcp list
 
 Output shows server name, type, enabled status, and description.
 
-#### Enabling MCP Servers for a Project
+##### Enabling MCP Servers for a Project
 
 Enable an MCP server for the current project:
 
@@ -682,7 +736,7 @@ This will:
 2. Update `.claude/settings.local.json` with the MCP configuration
 3. Make the MCP server available to Claude Code in this project
 
-#### Managing MCP Servers
+##### Managing MCP Servers
 
 ```bash
 # Show MCP server details
@@ -944,7 +998,16 @@ MIT License - feel free to use this tool in your projects!
 ## Changelog
 
 ### v1.7.0
-- **MCP (Model Context Protocol) Integration**:
+- **MCP Web UI Management**:
+  - Complete MCP server management through Web UI
+  - Tab navigation system (Accounts / MCP Servers)
+  - Add, edit, delete MCP servers with intuitive interface
+  - Test MCP server connections
+  - Enable/disable servers per project with one click
+  - Search and filter functionality
+  - Real-time validation and status indicators
+  - Full internationalization (Chinese/English)
+- **MCP CLI Integration**:
   - Global MCP server management with `ais mcp` commands
   - Project-level MCP server enable/disable functionality
   - Support for stdio, sse, and http MCP server types
@@ -953,7 +1016,15 @@ MIT License - feel free to use this tool in your projects!
   - Project commands: `ais mcp enable`, `ais mcp disable`, `ais mcp enabled`, `ais mcp sync`
   - Interactive MCP server configuration with validation
   - Environment variables and headers support for MCP servers
-  - Seamless integration with existing account management
+- **Bug Fixes**:
+  - Fixed account data not showing after adding tabs
+  - Fixed "switchTab is not defined" error
+  - Fixed incorrect search result messages
+- **Improvements**:
+  - Better user experience with clearer messages
+  - Modern JavaScript practices (event listeners)
+  - Improved code quality and maintainability
+  - 32 automated tests all passing
 
 ### v1.6.0
 - **CCR (Claude Code Router) Integration**:

@@ -19,6 +19,13 @@
   - 🔍 实时搜索过滤账号
   - 💾 自定义环境变量配置
   - 🎯 主题自动跟随系统设置
+- **MCP Web UI 管理**：完整的 MCP (Model Context Protocol) 服务器管理
+  - 🖥️ 直观的界面添加、编辑、删除 MCP 服务器
+  - 🔌 支持 stdio、sse、http 三种服务器类型
+  - 🧪 测试 MCP 服务器连接
+  - ⚡ 一键启用/禁用项目级服务器
+  - 🔍 搜索和筛选功能
+  - 🌐 完整的中英文支持
 - **安全存储**:账户凭证仅存储在本地
 - **交互式命令行**：所有操作都有易用的交互式提示
 - **多种账户类型**：支持 Claude、Codex、CCR (Claude Code Router)、Droids 和其他 AI 服务
@@ -76,6 +83,15 @@ npm link
 | `ais model use <name>` | - | 切换到不同的模型组 |
 | `ais model remove [name]` | `rm` | 删除模型组 |
 | `ais model show [name]` | - | 显示模型组配置 |
+| `ais mcp add [name]` | - | 添加新的 MCP 服务器 |
+| `ais mcp list` | `ls` | 列出所有 MCP 服务器 |
+| `ais mcp show [name]` | - | 显示 MCP 服务器详情 |
+| `ais mcp update [name]` | - | 更新 MCP 服务器配置 |
+| `ais mcp remove [name]` | `rm` | 删除 MCP 服务器 |
+| `ais mcp enable [name]` | - | 为当前项目启用 MCP 服务器 |
+| `ais mcp disable [name]` | - | 为当前项目禁用 MCP 服务器 |
+| `ais mcp enabled` | - | 显示已启用的 MCP 服务器 |
+| `ais mcp sync` | - | 同步 MCP 配置到 Claude Code |
 | `ais ui` | - | 启动 Web UI 管理界面 |
 | `ais paths` | - | 显示配置文件路径 |
 | `ais doctor` | - | 诊断 Claude Code 配置问题 |
@@ -851,6 +867,132 @@ cd src/
 ais current  # 应该显示你的账户
 ```
 
+### MCP (Model Context Protocol) 集成
+
+AIS 支持全局管理 MCP 服务器并按项目启用。MCP 服务器为 Claude Code 扩展额外的工具和功能。
+
+你可以通过 **CLI 命令**和 **Web UI** 两种方式管理 MCP 服务器。
+
+#### Web UI 管理（推荐）
+
+管理 MCP 服务器最简单的方式是通过 Web UI：
+
+```bash
+ais ui
+```
+
+然后点击 **"MCP 服务器"** 标签页：
+
+**功能：**
+- ✅ **添加 MCP 服务器**：点击"+ 添加 MCP 服务器"添加新服务器
+  - 选择服务器类型：stdio、sse 或 http
+  - 填写配置（命令、URL、环境变量等）
+  - 添加描述便于识别
+- ✅ **编辑服务器**：点击"编辑"修改现有服务器配置
+- ✅ **测试连接**：点击"测试连接"验证服务器可用性
+- ✅ **启用/禁用**：一键切换当前项目的服务器状态
+- ✅ **搜索和筛选**：快速按名称或类型查找服务器
+- ✅ **删除服务器**：删除不再需要的服务器
+- ✅ **同步配置**：点击"同步配置"同步到 Claude Code
+
+**优势：**
+- 直观的可视化界面
+- 实时验证
+- 无需记忆命令语法
+- 一目了然查看所有服务器
+- 状态指示器（已启用/未启用）
+- 支持中英文
+
+**示例工作流程：**
+1. 启动 Web UI：`ais ui`
+2. 点击"MCP 服务器"标签页
+3. 点击"+ 添加 MCP 服务器"
+4. 选择类型："stdio"
+5. 输入命令："npx"
+6. 输入参数："@modelcontextprotocol/server-filesystem,/path"
+7. 点击"保存"
+8. 点击"测试连接"验证
+9. 点击"启用"为当前项目启用
+
+#### CLI 管理
+
+你也可以通过 CLI 命令管理 MCP 服务器：
+
+##### 添加 MCP 服务器
+
+交互式添加新的 MCP 服务器：
+
+```bash
+ais mcp add filesystem
+```
+
+你将被提示配置：
+- **服务器类型**：stdio、sse 或 http
+- **命令和参数**（stdio 类型）
+- **URL**（sse/http 类型）
+- **环境变量**（可选）
+- **请求头**（sse/http 可选）
+- **描述**（可选）
+
+**示例：添加 stdio MCP 服务器**
+```bash
+$ ais mcp add filesystem
+? 选择 MCP 服务器类型: stdio
+? 输入命令: npx
+? 输入参数（逗号分隔）: @modelcontextprotocol/server-filesystem,/Users/user/workspace
+? 添加环境变量? 是
+? 环境变量 (KEY=VALUE): ALLOWED_PATHS=/Users/user/workspace
+? 添加另一个? 否
+? 输入描述: 文件系统访问 MCP 服务器
+✓ MCP 服务器 'filesystem' 添加成功！
+```
+
+##### 列出 MCP 服务器
+
+查看所有配置的 MCP 服务器：
+
+```bash
+ais mcp list
+```
+
+输出显示服务器名称、类型、启用状态和描述。
+
+##### 为项目启用 MCP 服务器
+
+为当前项目启用 MCP 服务器：
+
+```bash
+cd ~/my-project
+ais mcp enable filesystem
+```
+
+这将：
+1. 将服务器添加到项目的启用列表
+2. 更新 `.claude/settings.local.json` 的 MCP 配置
+3. 使 MCP 服务器在此项目中对 Claude Code 可用
+
+##### 管理 MCP 服务器
+
+```bash
+# 显示 MCP 服务器详情
+ais mcp show filesystem
+
+# 更新 MCP 服务器配置
+ais mcp update filesystem
+
+# 为当前项目禁用 MCP 服务器
+ais mcp disable filesystem
+
+# 显示当前项目已启用的 MCP 服务器
+ais mcp enabled
+
+# 同步 MCP 配置到 Claude Code
+ais mcp sync
+
+# 删除 MCP 服务器
+ais mcp remove filesystem
+```
+
 ## 贡献
 
 欢迎贡献！你可以：
@@ -863,6 +1005,35 @@ ais current  # 应该显示你的账户
 MIT License - 欢迎在你的项目中使用此工具！
 
 ## 更新日志
+
+### v1.7.0
+- **MCP Web UI 管理**：
+  - 通过 Web UI 完整管理 MCP 服务器
+  - 标签页导航系统（账号管理 / MCP 服务器）
+  - 直观界面添加、编辑、删除 MCP 服务器
+  - 测试 MCP 服务器连接
+  - 一键启用/禁用项目级服务器
+  - 搜索和筛选功能
+  - 实时验证和状态指示器
+  - 完整的中英文支持
+- **MCP CLI 集成**：
+  - 使用 `ais mcp` 命令全局管理 MCP 服务器
+  - 项目级 MCP 服务器启用/禁用功能
+  - 支持 stdio、sse 和 http MCP 服务器类型
+  - 自动生成 Claude Code 的 MCP 配置
+  - 命令：`ais mcp add`、`ais mcp list`、`ais mcp show`、`ais mcp update`、`ais mcp remove`
+  - 项目命令：`ais mcp enable`、`ais mcp disable`、`ais mcp enabled`、`ais mcp sync`
+  - 交互式 MCP 服务器配置，带验证
+  - 支持 MCP 服务器的环境变量和请求头
+- **Bug 修复**：
+  - 修复添加标签页后账号数据不显示的问题
+  - 修复 "switchTab is not defined" 错误
+  - 修复搜索结果提示信息不正确的问题
+- **改进**：
+  - 更好的用户体验，提示信息更清晰
+  - 现代 JavaScript 实践（事件监听器）
+  - 改进代码质量和可维护性
+  - 32 个自动化测试全部通过
 
 ### v1.6.0
 - **CCR (Claude Code Router) 集成**：
