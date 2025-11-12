@@ -42,3 +42,13 @@ yarn.lock
 
 # AIS (AI Account Switch) - Local configuration files
 .droids/config.json
+
+# Development documentation (local only)
+MCP-UI-IMPLEMENTATION.md
+FIXED-ISSUES.md
+SEARCH-FIX.md
+QUICK-TEST.md
+TEST-NOW.md
+RELEASE-v1.7.0.md
+test-ui.html
+verify-implementation.js

@@ -101,6 +101,24 @@ class UIServer {
       this.handleImportAccounts(req, res);
     } else if (pathname.startsWith('/api/accounts/') && pathname.endsWith('/check') && req.method === 'POST') {
       this.handleCheckAccount(req, res, pathname);
+    } else if (pathname === '/api/mcp-servers' && req.method === 'GET') {
+      this.handleGetMcpServers(req, res);
+    } else if (pathname === '/api/mcp-servers' && req.method === 'POST') {
+      this.handleAddMcpServer(req, res);
+    } else if (pathname.startsWith('/api/mcp-servers/') && pathname.endsWith('/test') && req.method === 'POST') {
+      this.handleTestMcpServer(req, res, pathname);
+    } else if (pathname.startsWith('/api/mcp-servers/') && pathname.endsWith('/enable') && req.method === 'POST') {
+      this.handleEnableMcpServer(req, res, pathname);
+    } else if (pathname.startsWith('/api/mcp-servers/') && pathname.endsWith('/disable') && req.method === 'POST') {
+      this.handleDisableMcpServer(req, res, pathname);
+    } else if (pathname === '/api/mcp-servers/enabled' && req.method === 'GET') {
+      this.handleGetEnabledMcpServers(req, res);
+    } else if (pathname === '/api/mcp-servers/sync' && req.method === 'POST') {
+      this.handleSyncMcpConfig(req, res);
+    } else if (pathname.startsWith('/api/mcp-servers/') && req.method === 'PUT') {
+      this.handleUpdateMcpServer(req, res, pathname);
+    } else if (pathname.startsWith('/api/mcp-servers/') && req.method === 'DELETE') {
+      this.handleDeleteMcpServer(req, res, pathname);
     } else {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Not found' }));
@@ -386,6 +404,305 @@ class UIServer {
         status: 'unavailable',
         error: error.message
       }));
+    }
+  }
+
+  handleGetMcpServers(req, res) {
+    try {
+      const servers = this.config.getAllMcpServers();
+      const enabledServers = this.config.getEnabledMcpServers();
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ servers, enabledServers }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  handleAddMcpServer(req, res) {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+        const { name, ...serverData } = data;
+
+        if (!name || !serverData.type) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Name and type are required' }));
+          return;
+        }
+
+        // Validate based on type
+        if (serverData.type === 'stdio' && !serverData.command) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Command is required for stdio type' }));
+          return;
+        }
+
+        if ((serverData.type === 'http' || serverData.type === 'sse') && !serverData.url) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'URL is required for http/sse type' }));
+          return;
+        }
+
+        this.config.addMcpServer(name, serverData);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, message: 'MCP server added successfully' }));
+      } catch (error) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: error.message }));
+      }
+    });
+  }
+
+  handleUpdateMcpServer(req, res, pathname) {
+    const name = decodeURIComponent(pathname.split('/api/mcp-servers/')[1]);
+
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+
+    req.on('end', () => {
+      try {
+        const serverData = JSON.parse(body);
+
+        if (!this.config.getMcpServer(name)) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'MCP server not found' }));
+          return;
+        }
+
+        this.config.updateMcpServer(name, serverData);
+
+        // Sync if server is enabled in current project
+        const enabledServers = this.config.getEnabledMcpServers();
+        if (enabledServers.includes(name)) {
+          try {
+            this.config.syncMcpConfig();
+          } catch (syncError) {
+            // Ignore sync errors if not in a project
+          }
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, message: 'MCP server updated successfully' }));
+      } catch (error) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: error.message }));
+      }
+    });
+  }
+
+  handleDeleteMcpServer(req, res, pathname) {
+    const name = decodeURIComponent(pathname.split('/api/mcp-servers/')[1]);
+
+    try {
+      if (!this.config.getMcpServer(name)) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'MCP server not found' }));
+        return;
+      }
+
+      // Remove from project if enabled
+      const isEnabled = this.config.isMcpServerEnabledInCurrentProject(name);
+      if (isEnabled) {
+        this.config.removeMcpServerFromCurrentProject(name);
+        try {
+          this.config.syncMcpConfig();
+        } catch (syncError) {
+          // Ignore sync errors
+        }
+      }
+
+      this.config.removeMcpServer(name);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'MCP server deleted successfully' }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  handleTestMcpServer(req, res, pathname) {
+    const name = decodeURIComponent(pathname.split('/api/mcp-servers/')[1].replace('/test', ''));
+
+    try {
+      const server = this.config.getMcpServer(name);
+      if (!server) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'MCP server not found' }));
+        return;
+      }
+
+      // Import test function from mcp.js
+      const { spawn } = require('child_process');
+
+      const testMcpConnection = (server) => {
+        if (server.type === 'stdio') {
+          return new Promise((resolve) => {
+            let resolved = false;
+            const safeResolve = (result) => {
+              if (!resolved) {
+                resolved = true;
+                resolve(result);
+              }
+            };
+
+            try {
+              const proc = spawn(server.command, server.args || [], {
+                env: { ...process.env, ...server.env },
+                stdio: ['pipe', 'pipe', 'pipe']
+              });
+
+              const timeout = setTimeout(() => {
+                if (!resolved) {
+                  proc.kill();
+                  safeResolve({ success: false, error: 'Connection timeout (5s)' });
+                }
+              }, 5000);
+
+              proc.on('error', (err) => {
+                clearTimeout(timeout);
+                safeResolve({ success: false, error: `Failed to start process: ${err.message}` });
+              });
+
+              proc.on('spawn', () => {
+                clearTimeout(timeout);
+                proc.kill();
+                safeResolve({ success: true, message: 'Process spawned successfully' });
+              });
+
+              let hasOutput = false;
+              proc.stdout.on('data', () => {
+                if (!hasOutput) {
+                  hasOutput = true;
+                  clearTimeout(timeout);
+                  proc.kill();
+                  safeResolve({ success: true, message: 'Process started and producing output' });
+                }
+              });
+
+              proc.on('exit', (code) => {
+                clearTimeout(timeout);
+                if (!resolved) {
+                  if (code === 0) {
+                    safeResolve({ success: true, message: 'Process exited cleanly' });
+                  } else {
+                    safeResolve({ success: false, error: `Process exited with code ${code}` });
+                  }
+                }
+              });
+            } catch (error) {
+              safeResolve({ success: false, error: `Exception: ${error.message}` });
+            }
+          });
+        } else if (server.type === 'http' || server.type === 'sse') {
+          return new Promise((resolve) => {
+            try {
+              const https = require('https');
+              const http = require('http');
+              const url = new URL(server.url);
+              const client = url.protocol === 'https:' ? https : http;
+
+              const options = {
+                method: 'GET',
+                headers: {
+                  ...server.headers
+                },
+                timeout: 5000
+              };
+
+              const req = client.request(server.url, options, (res) => {
+                if (res.statusCode >= 200 && res.statusCode < 500) {
+                  resolve({ success: true, message: `Server is reachable (HTTP ${res.statusCode})` });
+                } else {
+                  resolve({ success: false, error: `Server responded with HTTP ${res.statusCode}` });
+                }
+                res.resume();
+              });
+
+              req.on('error', (err) => {
+                resolve({ success: false, error: `Connection failed: ${err.message}` });
+              });
+
+              req.on('timeout', () => {
+                req.destroy();
+                resolve({ success: false, error: 'Connection timeout (5s)' });
+              });
+
+              req.end();
+            } catch (error) {
+              resolve({ success: false, error: `Exception: ${error.message}` });
+            }
+          });
+        } else {
+          return Promise.resolve({ success: false, error: `Unsupported server type: ${server.type}` });
+        }
+      };
+
+      testMcpConnection(server).then(result => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      });
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: error.message }));
+    }
+  }
+
+  handleEnableMcpServer(req, res, pathname) {
+    const name = decodeURIComponent(pathname.split('/api/mcp-servers/')[1].replace('/enable', ''));
+
+    try {
+      this.config.enableProjectMcpServer(name);
+      this.config.syncMcpConfig();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'MCP server enabled successfully' }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  handleDisableMcpServer(req, res, pathname) {
+    const name = decodeURIComponent(pathname.split('/api/mcp-servers/')[1].replace('/disable', ''));
+
+    try {
+      this.config.disableProjectMcpServer(name);
+      this.config.syncMcpConfig();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'MCP server disabled successfully' }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  handleGetEnabledMcpServers(req, res) {
+    try {
+      const enabledServers = this.config.getEnabledMcpServers();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ enabledServers }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  handleSyncMcpConfig(req, res) {
+    try {
+      const result = this.config.syncMcpConfig();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, result }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
     }
   }
 
@@ -1020,6 +1337,49 @@ class UIServer {
             color: white;
             margin-left: 8px;
         }
+
+        /* Tab Navigation */
+        .tab-navigation {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            margin-bottom: -2px;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        [data-theme="dark"] .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -1039,35 +1399,72 @@ class UIServer {
             <p data-i18n="subtitle">管理你的 AI 账号配置</p>
         </div>
 
-        <div class="controls">
-            <div class="search-box">
-                <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="搜索账号...">
-            </div>
-            <div class="filter-box">
-                <select id="typeFilter" onchange="renderAccounts()">
-                    <option value="" data-i18n="allTypes">所有类型</option>
-                    <option value="Claude">Claude</option>
-                    <option value="Codex">Codex</option>
-                    <option value="CCR">CCR</option>
-                    <option value="Droids">Droids</option>
-                    <option value="Other" data-i18n="other">其他</option>
-                </select>
-            </div>
-            <button class="btn btn-primary" onclick="showAddModal()" data-i18n="addAccount">+ 添加账号</button>
-            <button class="btn btn-secondary" onclick="exportAccounts()" data-i18n="exportAll">导出全部</button>
-            <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()" data-i18n="import">导入</button>
-            <input type="file" id="importFile" accept=".json" style="display: none" onchange="importAccounts(this)">
+        <!-- Tab Navigation -->
+        <div class="tab-navigation">
+            <button class="tab-btn active" id="accountsTabBtn" data-i18n="accountsTab">账号管理</button>
+            <button class="tab-btn" id="mcpTabBtn" data-i18n="mcpTab">MCP 服务器</button>
         </div>
 
-        <div id="accountsContainer" class="accounts-grid"></div>
-        <div id="emptyState" class="empty-state hidden">
-            <h2 data-i18n="noAccounts">还没有账号</h2>
-            <p data-i18n="getStarted">开始添加你的第一个账号吧</p>
-            <button class="btn btn-primary" onclick="showAddModal()" data-i18n="addAccount">+ 添加账号</button>
+        <!-- Accounts Tab -->
+        <div id="accountsTab" class="tab-content active">
+            <div class="controls">
+                <div class="search-box">
+                    <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="搜索账号...">
+                </div>
+                <div class="filter-box">
+                    <select id="typeFilter" onchange="renderAccounts()">
+                        <option value="" data-i18n="allTypes">所有类型</option>
+                        <option value="Claude">Claude</option>
+                        <option value="Codex">Codex</option>
+                        <option value="CCR">CCR</option>
+                        <option value="Droids">Droids</option>
+                        <option value="Other" data-i18n="other">其他</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="showAddModal()" data-i18n="addAccount">+ 添加账号</button>
+                <button class="btn btn-secondary" onclick="exportAccounts()" data-i18n="exportAll">导出全部</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()" data-i18n="import">导入</button>
+                <input type="file" id="importFile" accept=".json" style="display: none" onchange="importAccounts(this)">
+            </div>
+
+            <div id="accountsContainer" class="accounts-grid"></div>
+            <div id="emptyState" class="empty-state hidden">
+                <h2 data-i18n="noAccounts">还没有账号</h2>
+                <p data-i18n="getStarted">开始添加你的第一个账号吧</p>
+                <button class="btn btn-primary" onclick="showAddModal()" data-i18n="addAccount">+ 添加账号</button>
+            </div>
         </div>
+        <!-- End Accounts Tab -->
+
+        <!-- MCP Tab -->
+        <div id="mcpTab" class="tab-content">
+            <div class="controls">
+                <div class="search-box">
+                    <input type="text" id="mcpSearchInput" data-i18n-placeholder="searchMcpPlaceholder" placeholder="搜索 MCP 服务器...">
+                </div>
+                <div class="filter-box">
+                    <select id="mcpTypeFilter" onchange="renderMcpServers()">
+                        <option value="" data-i18n="allTypes">所有类型</option>
+                        <option value="stdio">stdio</option>
+                        <option value="sse">sse</option>
+                        <option value="http">http</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="showAddMcpModal()" data-i18n="addMcpServer">+ 添加 MCP 服务器</button>
+                <button class="btn btn-secondary" onclick="syncMcpConfig()" data-i18n="syncMcp">同步配置</button>
+            </div>
+
+            <div id="mcpServersContainer" class="accounts-grid"></div>
+            <div id="mcpEmptyState" class="empty-state hidden">
+                <h2 data-i18n="noMcpServers">还没有 MCP 服务器</h2>
+                <p data-i18n="getMcpStarted">开始添加你的第一个 MCP 服务器吧</p>
+                <button class="btn btn-primary" onclick="showAddMcpModal()" data-i18n="addMcpServer">+ 添加 MCP 服务器</button>
+            </div>
+        </div>
+        <!-- End MCP Tab -->
     </div>
 
-    <!-- Add/Edit Modal -->
+    <!-- Add/Edit Account Modal -->
     <div id="accountModal" class="modal">
         <div class="modal-content">
             <div class="modal-header" id="modalTitle" data-i18n="addAccountTitle">添加账号</div>
@@ -1156,6 +1553,67 @@ class UIServer {
         </div>
     </div>
 
+    <!-- Add/Edit MCP Server Modal -->
+    <div id="mcpModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="mcpModalTitle" data-i18n="addMcpServerTitle">添加 MCP 服务器</div>
+            <form id="mcpForm" onsubmit="saveMcpServer(event)">
+                <div class="form-group">
+                    <label for="mcpName" data-i18n="mcpName">服务器名称 *</label>
+                    <input type="text" id="mcpName" required data-i18n-placeholder="mcpNamePlaceholder" placeholder="例如: filesystem">
+                </div>
+                <div class="form-group">
+                    <label for="mcpType" data-i18n="mcpType">类型 *</label>
+                    <select id="mcpType" required onchange="toggleMcpFields()">
+                        <option value="stdio">stdio</option>
+                        <option value="sse">sse</option>
+                        <option value="http">http</option>
+                    </select>
+                </div>
+
+                <!-- stdio fields -->
+                <div id="stdioFields">
+                    <div class="form-group">
+                        <label for="mcpCommand" data-i18n="mcpCommand">命令 *</label>
+                        <input type="text" id="mcpCommand" data-i18n-placeholder="mcpCommandPlaceholder" placeholder="例如: npx">
+                    </div>
+                    <div class="form-group">
+                        <label for="mcpArgs" data-i18n="mcpArgs">参数 (逗号分隔)</label>
+                        <input type="text" id="mcpArgs" data-i18n-placeholder="mcpArgsPlaceholder" placeholder="例如: @modelcontextprotocol/server-filesystem,/path">
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="mcpEnv">环境变量</label>
+                        <div id="mcpEnvVarsList"></div>
+                        <button type="button" class="btn btn-secondary btn-small" onclick="addMcpEnvVar()" data-i18n="addVariable">+ 添加变量</button>
+                    </div>
+                </div>
+
+                <!-- http/sse fields -->
+                <div id="httpFields" style="display: none;">
+                    <div class="form-group">
+                        <label for="mcpUrl" data-i18n="mcpUrl">URL *</label>
+                        <input type="text" id="mcpUrl" data-i18n-placeholder="mcpUrlPlaceholder" placeholder="例如: https://api.example.com/mcp">
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="mcpHeaders">请求头</label>
+                        <div id="mcpHeadersList"></div>
+                        <button type="button" class="btn btn-secondary btn-small" onclick="addMcpHeader()" data-i18n="addHeader">+ 添加请求头</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="mcpDescription" data-i18n="description">描述 (可选)</label>
+                    <textarea id="mcpDescription" data-i18n-placeholder="mcpDescriptionPlaceholder" placeholder="MCP 服务器的用途描述"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" data-i18n="save">保存</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeMcpModal()" data-i18n="cancel">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // i18n translations
         const translations = {
@@ -1213,7 +1671,46 @@ class UIServer {
                 exportFailed: '导出失败',
                 importSuccess: '导入成功',
                 importFailed: '导入失败',
-                importMessage: '已导入 {imported} 个账号，跳过 {skipped} 个现有账号'
+                importMessage: '已导入 {imported} 个账号，跳过 {skipped} 个现有账号',
+                // MCP related
+                accountsTab: '账号管理',
+                mcpTab: 'MCP 服务器',
+                searchMcpPlaceholder: '搜索 MCP 服务器...',
+                addMcpServer: '+ 添加 MCP 服务器',
+                syncMcp: '同步配置',
+                noMcpServers: '还没有 MCP 服务器',
+                getMcpStarted: '开始添加你的第一个 MCP 服务器吧',
+                addMcpServerTitle: '添加 MCP 服务器',
+                editMcpServerTitle: '编辑 MCP 服务器',
+                mcpName: '服务器名称 *',
+                mcpNamePlaceholder: '例如: filesystem',
+                mcpType: '类型 *',
+                mcpCommand: '命令 *',
+                mcpCommandPlaceholder: '例如: npx',
+                mcpArgs: '参数 (逗号分隔)',
+                mcpArgsPlaceholder: '例如: @modelcontextprotocol/server-filesystem,/path',
+                mcpEnv: '环境变量',
+                mcpUrl: 'URL *',
+                mcpUrlPlaceholder: '例如: https://api.example.com/mcp',
+                mcpHeaders: '请求头',
+                addHeader: '+ 添加请求头',
+                mcpDescriptionPlaceholder: 'MCP 服务器的用途描述',
+                mcpEnabled: '已启用',
+                mcpDisabled: '未启用',
+                enableMcp: '启用',
+                disableMcp: '禁用',
+                testMcp: '测试连接',
+                mcpTestSuccess: 'MCP 服务器连接成功',
+                mcpTestFailed: 'MCP 服务器连接失败',
+                mcpSaveSuccess: 'MCP 服务器保存成功',
+                mcpSaveFailed: 'MCP 服务器保存失败',
+                mcpDeleteSuccess: 'MCP 服务器删除成功',
+                mcpDeleteFailed: 'MCP 服务器删除失败',
+                mcpSyncSuccess: 'MCP 配置同步成功',
+                mcpSyncFailed: 'MCP 配置同步失败',
+                confirmDeleteMcp: '确定要删除 MCP 服务器',
+                noResults: '没有找到匹配的结果',
+                tryDifferentSearch: '尝试使用不同的搜索条件或筛选器'
             },
             en: {
                 title: 'AIS Account Manager',
@@ -1269,7 +1766,46 @@ class UIServer {
                 exportFailed: 'Failed to export accounts',
                 importSuccess: 'Import successful',
                 importFailed: 'Failed to import accounts',
-                importMessage: 'Imported {imported} accounts, skipped {skipped} existing accounts'
+                importMessage: 'Imported {imported} accounts, skipped {skipped} existing accounts',
+                // MCP related
+                accountsTab: 'Accounts',
+                mcpTab: 'MCP Servers',
+                searchMcpPlaceholder: 'Search MCP servers...',
+                addMcpServer: '+ Add MCP Server',
+                syncMcp: 'Sync Config',
+                noMcpServers: 'No MCP servers yet',
+                getMcpStarted: 'Get started by adding your first MCP server',
+                addMcpServerTitle: 'Add MCP Server',
+                editMcpServerTitle: 'Edit MCP Server',
+                mcpName: 'Server Name *',
+                mcpNamePlaceholder: 'e.g., filesystem',
+                mcpType: 'Type *',
+                mcpCommand: 'Command *',
+                mcpCommandPlaceholder: 'e.g., npx',
+                mcpArgs: 'Arguments (comma-separated)',
+                mcpArgsPlaceholder: 'e.g., @modelcontextprotocol/server-filesystem,/path',
+                mcpEnv: 'Environment Variables',
+                mcpUrl: 'URL *',
+                mcpUrlPlaceholder: 'e.g., https://api.example.com/mcp',
+                mcpHeaders: 'Headers',
+                addHeader: '+ Add Header',
+                mcpDescriptionPlaceholder: 'Description of the MCP server',
+                mcpEnabled: 'Enabled',
+                mcpDisabled: 'Disabled',
+                enableMcp: 'Enable',
+                disableMcp: 'Disable',
+                testMcp: 'Test Connection',
+                mcpTestSuccess: 'MCP server connection successful',
+                mcpTestFailed: 'MCP server connection failed',
+                mcpSaveSuccess: 'MCP server saved successfully',
+                mcpSaveFailed: 'Failed to save MCP server',
+                mcpDeleteSuccess: 'MCP server deleted successfully',
+                mcpDeleteFailed: 'Failed to delete MCP server',
+                mcpSyncSuccess: 'MCP configuration synced successfully',
+                mcpSyncFailed: 'Failed to sync MCP configuration',
+                confirmDeleteMcp: 'Are you sure you want to delete MCP server',
+                noResults: 'No matching results found',
+                tryDifferentSearch: 'Try using different search terms or filters'
             }
         };
 
@@ -1280,6 +1816,44 @@ class UIServer {
         let envVarCount = 0;
         let modelGroupCount = 0;
         let activeModelGroup = null;
+
+        // MCP related variables
+        let mcpServers = {};
+        let enabledMcpServers = [];
+        let editingMcpServer = null;
+        let mcpEnvVarCount = 0;
+        let mcpHeaderCount = 0;
+
+        // Tab switching function
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            if (tabName === 'accounts') {
+                document.getElementById('accountsTab').classList.add('active');
+                document.getElementById('accountsTabBtn').classList.add('active');
+            } else if (tabName === 'mcp') {
+                document.getElementById('mcpTab').classList.add('active');
+                document.getElementById('mcpTabBtn').classList.add('active');
+                loadMcpServers();
+            }
+        }
+
+        // Setup tab button event listeners after DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('accountsTabBtn').addEventListener('click', function() {
+                switchTab('accounts');
+            });
+            document.getElementById('mcpTabBtn').addEventListener('click', function() {
+                switchTab('mcp');
+            });
+        });
 
         // Initialize theme
         function initTheme() {
@@ -1371,7 +1945,23 @@ class UIServer {
 
             if (filteredAccounts.length === 0) {
                 container.innerHTML = '';
-                emptyState.classList.remove('hidden');
+                // Check if it's truly empty or just filtered
+                const hasAccounts = Object.keys(accounts).length > 0;
+                const isFiltered = searchTerm || typeFilter;
+
+                if (hasAccounts && isFiltered) {
+                    // Show "no results" message
+                    container.innerHTML = \`
+                        <div class="empty-state">
+                            <h2>\${t('noResults')}</h2>
+                            <p>\${t('tryDifferentSearch')}</p>
+                        </div>
+                    \`;
+                    emptyState.classList.add('hidden');
+                } else {
+                    // Show "no accounts" message
+                    emptyState.classList.remove('hidden');
+                }
                 return;
             }
 
@@ -1998,8 +2588,384 @@ class UIServer {
             }
         }
 
+        // MCP Functions
+        async function loadMcpServers() {
+            try {
+                const response = await fetch('/api/mcp-servers');
+                const data = await response.json();
+                mcpServers = data.servers || {};
+                enabledMcpServers = data.enabledServers || [];
+                renderMcpServers();
+            } catch (error) {
+                showToast(t('loadFailed'), 'error');
+            }
+        }
+
+        function renderMcpServers() {
+            const container = document.getElementById('mcpServersContainer');
+            const emptyState = document.getElementById('mcpEmptyState');
+            const searchTerm = document.getElementById('mcpSearchInput').value.toLowerCase();
+            const typeFilter = document.getElementById('mcpTypeFilter').value;
+
+            const filteredServers = Object.entries(mcpServers).filter(([name, data]) => {
+                const matchesSearch = name.toLowerCase().includes(searchTerm) ||
+                       (data.description && data.description.toLowerCase().includes(searchTerm));
+                const matchesType = !typeFilter || data.type === typeFilter;
+                return matchesSearch && matchesType;
+            });
+
+            if (filteredServers.length === 0) {
+                container.innerHTML = '';
+                // Check if it's truly empty or just filtered
+                const hasServers = Object.keys(mcpServers).length > 0;
+                const isFiltered = searchTerm || typeFilter;
+
+                if (hasServers && isFiltered) {
+                    // Show "no results" message
+                    container.innerHTML = \`
+                        <div class="empty-state">
+                            <h2>\${t('noResults')}</h2>
+                            <p>\${t('tryDifferentSearch')}</p>
+                        </div>
+                    \`;
+                    emptyState.classList.add('hidden');
+                } else {
+                    // Show "no MCP servers" message
+                    emptyState.classList.remove('hidden');
+                }
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            container.innerHTML = filteredServers.map(([name, data]) => {
+                const isEnabled = enabledMcpServers.includes(name);
+                const statusClass = isEnabled ? 'available' : 'unknown';
+                const statusText = isEnabled ? t('mcpEnabled') : t('mcpDisabled');
+
+                return \`
+                <div class="account-card">
+                    <div class="account-content">
+                        <div class="account-header">
+                            <div class="account-name-wrapper">
+                                <div class="account-name">\${name}</div>
+                                <span class="account-type type-other">\${data.type}</span>
+                            </div>
+                            <div class="account-status-wrapper">
+                                <span class="account-status \${statusClass}" title="\${statusText}"></span>
+                            </div>
+                        </div>
+                        \${data.description ? \`
+                        <div class="account-info">
+                            <div class="info-label">\${t('description').replace(' (可选)', '').replace(' (optional)', '')}</div>
+                            <div class="info-value">\${data.description}</div>
+                        </div>
+                        \` : ''}
+                        \${data.command ? \`
+                        <div class="account-info">
+                            <div class="info-label">\${t('mcpCommand').replace(' *', '')}</div>
+                            <div class="info-value">\${data.command} \${data.args ? data.args.join(' ') : ''}</div>
+                        </div>
+                        \` : ''}
+                        \${data.url ? \`
+                        <div class="account-info">
+                            <div class="info-label">\${t('mcpUrl').replace(' *', '')}</div>
+                            <div class="info-value">\${data.url}</div>
+                        </div>
+                        \` : ''}
+                    </div>
+                    <div class="account-actions">
+                        <button class="btn btn-secondary btn-small" onclick="editMcpServer('\${name}')">\${t('edit')}</button>
+                        <button class="btn btn-secondary btn-small" onclick="testMcpServer('\${name}')">\${t('testMcp')}</button>
+                        \${isEnabled ?
+                            \`<button class="btn btn-secondary btn-small" onclick="disableMcpServer('\${name}')">\${t('disableMcp')}</button>\` :
+                            \`<button class="btn btn-primary btn-small" onclick="enableMcpServer('\${name}')">\${t('enableMcp')}</button>\`
+                        }
+                        <button class="btn btn-danger btn-small" onclick="deleteMcpServer('\${name}')">\${t('delete')}</button>
+                    </div>
+                </div>
+            \`;
+            }).join('');
+        }
+
+        function showAddMcpModal() {
+            editingMcpServer = null;
+            document.getElementById('mcpModalTitle').textContent = t('addMcpServerTitle');
+            document.getElementById('mcpForm').reset();
+            document.getElementById('mcpName').disabled = false;
+            document.getElementById('mcpEnvVarsList').innerHTML = '';
+            document.getElementById('mcpHeadersList').innerHTML = '';
+            mcpEnvVarCount = 0;
+            mcpHeaderCount = 0;
+            toggleMcpFields();
+            document.getElementById('mcpModal').classList.add('active');
+        }
+
+        function editMcpServer(name) {
+            editingMcpServer = name;
+            const server = mcpServers[name];
+
+            document.getElementById('mcpModalTitle').textContent = t('editMcpServerTitle');
+            document.getElementById('mcpName').value = name;
+            document.getElementById('mcpName').disabled = true;
+            document.getElementById('mcpType').value = server.type || 'stdio';
+            document.getElementById('mcpDescription').value = server.description || '';
+
+            // Clear lists
+            document.getElementById('mcpEnvVarsList').innerHTML = '';
+            document.getElementById('mcpHeadersList').innerHTML = '';
+            mcpEnvVarCount = 0;
+            mcpHeaderCount = 0;
+
+            toggleMcpFields();
+
+            if (server.type === 'stdio') {
+                document.getElementById('mcpCommand').value = server.command || '';
+                document.getElementById('mcpArgs').value = server.args ? server.args.join(', ') : '';
+
+                if (server.env) {
+                    Object.entries(server.env).forEach(([key, value]) => {
+                        addMcpEnvVar(key, value);
+                    });
+                }
+            } else {
+                document.getElementById('mcpUrl').value = server.url || '';
+
+                if (server.headers) {
+                    Object.entries(server.headers).forEach(([key, value]) => {
+                        addMcpHeader(key, value);
+                    });
+                }
+            }
+
+            document.getElementById('mcpModal').classList.add('active');
+        }
+
+        function closeMcpModal() {
+            document.getElementById('mcpModal').classList.remove('active');
+        }
+
+        function toggleMcpFields() {
+            const type = document.getElementById('mcpType').value;
+            const stdioFields = document.getElementById('stdioFields');
+            const httpFields = document.getElementById('httpFields');
+
+            if (type === 'stdio') {
+                stdioFields.style.display = 'block';
+                httpFields.style.display = 'none';
+            } else {
+                stdioFields.style.display = 'none';
+                httpFields.style.display = 'block';
+            }
+        }
+
+        function addMcpEnvVar(key = '', value = '') {
+            const id = mcpEnvVarCount++;
+            const container = document.getElementById('mcpEnvVarsList');
+            const div = document.createElement('div');
+            div.className = 'env-var-item';
+            div.id = \`mcpEnvVar\${id}\`;
+            div.innerHTML = \`
+                <input type="text" placeholder="KEY" value="\${key}" id="mcpEnvKey\${id}">
+                <input type="text" placeholder="VALUE" value="\${value}" id="mcpEnvValue\${id}">
+                <button type="button" class="btn btn-danger btn-small" onclick="removeMcpEnvVar(\${id})">×</button>
+            \`;
+            container.appendChild(div);
+        }
+
+        function removeMcpEnvVar(id) {
+            document.getElementById(\`mcpEnvVar\${id}\`).remove();
+        }
+
+        function addMcpHeader(key = '', value = '') {
+            const id = mcpHeaderCount++;
+            const container = document.getElementById('mcpHeadersList');
+            const div = document.createElement('div');
+            div.className = 'env-var-item';
+            div.id = \`mcpHeader\${id}\`;
+            div.innerHTML = \`
+                <input type="text" placeholder="KEY" value="\${key}" id="mcpHeaderKey\${id}">
+                <input type="text" placeholder="VALUE" value="\${value}" id="mcpHeaderValue\${id}">
+                <button type="button" class="btn btn-danger btn-small" onclick="removeMcpHeader(\${id})">×</button>
+            \`;
+            container.appendChild(div);
+        }
+
+        function removeMcpHeader(id) {
+            document.getElementById(\`mcpHeader\${id}\`).remove();
+        }
+
+        async function saveMcpServer(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('mcpName').value;
+            const serverData = {
+                type: document.getElementById('mcpType').value,
+                description: document.getElementById('mcpDescription').value
+            };
+
+            if (serverData.type === 'stdio') {
+                serverData.command = document.getElementById('mcpCommand').value;
+                const argsStr = document.getElementById('mcpArgs').value;
+                serverData.args = argsStr ? argsStr.split(',').map(a => a.trim()) : [];
+
+                serverData.env = {};
+                document.getElementById('mcpEnvVarsList').querySelectorAll('.env-var-item').forEach(item => {
+                    const key = item.querySelector('[id^="mcpEnvKey"]').value.trim();
+                    const value = item.querySelector('[id^="mcpEnvValue"]').value.trim();
+                    if (key && value) {
+                        serverData.env[key] = value;
+                    }
+                });
+
+                if (Object.keys(serverData.env).length === 0) {
+                    delete serverData.env;
+                }
+            } else {
+                serverData.url = document.getElementById('mcpUrl').value;
+
+                serverData.headers = {};
+                document.getElementById('mcpHeadersList').querySelectorAll('.env-var-item').forEach(item => {
+                    const key = item.querySelector('[id^="mcpHeaderKey"]').value.trim();
+                    const value = item.querySelector('[id^="mcpHeaderValue"]').value.trim();
+                    if (key && value) {
+                        serverData.headers[key] = value;
+                    }
+                });
+
+                if (Object.keys(serverData.headers).length === 0) {
+                    delete serverData.headers;
+                }
+            }
+
+            try {
+                const url = editingMcpServer
+                    ? \`/api/mcp-servers/\${encodeURIComponent(name)}\`
+                    : '/api/mcp-servers';
+                const method = editingMcpServer ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, ...serverData })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(t('mcpSaveSuccess'), 'success');
+                    closeMcpModal();
+                    await loadMcpServers();
+                } else {
+                    showToast(result.error || t('mcpSaveFailed'), 'error');
+                }
+            } catch (error) {
+                showToast(t('mcpSaveFailed'), 'error');
+            }
+        }
+
+        async function deleteMcpServer(name) {
+            if (!confirm(\`\${t('confirmDeleteMcp')} "\${name}"?\`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(\`/api/mcp-servers/\${encodeURIComponent(name)}\`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(t('mcpDeleteSuccess'), 'success');
+                    await loadMcpServers();
+                } else {
+                    showToast(result.error || t('mcpDeleteFailed'), 'error');
+                }
+            } catch (error) {
+                showToast(t('mcpDeleteFailed'), 'error');
+            }
+        }
+
+        async function testMcpServer(name) {
+            try {
+                showToast('Testing...', 'success');
+                const response = await fetch(\`/api/mcp-servers/\${encodeURIComponent(name)}/test\`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast(t('mcpTestSuccess') + (result.message ? ': ' + result.message : ''), 'success');
+                } else {
+                    showToast(t('mcpTestFailed') + (result.error ? ': ' + result.error : ''), 'error');
+                }
+            } catch (error) {
+                showToast(t('mcpTestFailed') + ': ' + error.message, 'error');
+            }
+        }
+
+        async function enableMcpServer(name) {
+            try {
+                const response = await fetch(\`/api/mcp-servers/\${encodeURIComponent(name)}/enable\`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(t('mcpSaveSuccess'), 'success');
+                    await loadMcpServers();
+                } else {
+                    showToast(result.error || t('mcpSaveFailed'), 'error');
+                }
+            } catch (error) {
+                showToast(t('mcpSaveFailed'), 'error');
+            }
+        }
+
+        async function disableMcpServer(name) {
+            try {
+                const response = await fetch(\`/api/mcp-servers/\${encodeURIComponent(name)}/disable\`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(t('mcpSaveSuccess'), 'success');
+                    await loadMcpServers();
+                } else {
+                    showToast(result.error || t('mcpSaveFailed'), 'error');
+                }
+            } catch (error) {
+                showToast(t('mcpSaveFailed'), 'error');
+            }
+        }
+
+        async function syncMcpConfig() {
+            try {
+                showToast('Syncing...', 'success');
+                const response = await fetch('/api/mcp-servers/sync', {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(t('mcpSyncSuccess'), 'success');
+                    await loadMcpServers();
+                } else {
+                    showToast(result.error || t('mcpSyncFailed'), 'error');
+                }
+            } catch (error) {
+                showToast(t('mcpSyncFailed'), 'error');
+            }
+        }
+
         // Event listeners
         document.getElementById('searchInput').addEventListener('input', renderAccounts);
+        document.getElementById('mcpSearchInput').addEventListener('input', renderMcpServers);
 
         // Load accounts on page load
         loadAccounts();
