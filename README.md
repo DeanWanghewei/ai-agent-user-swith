@@ -1,227 +1,281 @@
 # AI Account Switch (ais)
 
-[简体中文](README_ZH.md) | English
+简体中文 | [English](README_EN.md)
 
-A cross-platform CLI tool to manage and switch between Claude/Codex/Droids account configurations for different projects.
+一个跨平台的命令行工具，用于管理和切换不同项目的 Claude/Codex/Droids 账户配置。
 
-## Features
+## 特性
 
-- **Cross-Platform**: Works seamlessly on macOS, Linux, and Windows
-- **Multiple Accounts**: Store and manage multiple AI service accounts
-- **Project-Specific**: Each project can use a different account
-- **Smart Directory Detection**: Works in any subdirectory of your project (like git)
-- **Claude Code Integration**: Automatically generates `.claude/settings.local.json` for Claude Code CLI
-- **Secure Storage**: Account credentials stored locally in your home directory
-- **Interactive CLI**: Easy-to-use interactive prompts for all operations
-- **Account Types**: Support for Claude, Codex, CCR (Claude Code Router), Droids, and other AI services
-- **Web UI**: Modern web interface with account status checking and management
-- **MCP Web UI Management**: Complete MCP (Model Context Protocol) server management through Web UI
-  - Add, edit, delete MCP servers with intuitive interface
-  - Support for stdio, sse, and http server types
-  - Test MCP server connections
-  - Enable/disable servers per project
-  - Search and filter functionality
-  - Full internationalization (Chinese/English)
+- **跨平台支持**：在 macOS、Linux 和 Windows 上无缝运行
+- **多账户管理**：存储和管理多个 AI 服务账户
+- **项目级配置**：每个项目可以使用不同的账户
+- **智能目录检测**：在项目的任何子目录中都能工作（类似 git）
+- **Claude Code 集成**：自动生成 `.claude/settings.local.json` 配置文件
+- **Web UI 管理界面**：
+  - 🎨 现代化单页面应用,支持深色/浅色主题
+  - 🌍 中英文双语支持,一键切换
+  - ⚙️ 可视化管理账号:增删改查一目了然
+  - 📤 导入/导出功能:批量管理账号配置
+  - 🔍 实时搜索过滤账号
+  - 💾 自定义环境变量配置
+  - 🎯 主题自动跟随系统设置
+- **MCP Web UI 管理**：完整的 MCP (Model Context Protocol) 服务器管理
+  - 🖥️ 直观的界面添加、编辑、删除 MCP 服务器
+  - 🔌 支持 stdio、sse、http 三种服务器类型
+  - 🧪 测试 MCP 服务器连接
+  - ⚡ 一键启用/禁用项目级服务器
+  - 🔍 搜索和筛选功能
+  - 🌐 完整的中英文支持
+- **安全存储**:账户凭证仅存储在本地
+- **交互式命令行**：所有操作都有易用的交互式提示
+- **多种账户类型**：支持 Claude、Codex、CCR (Claude Code Router)、Droids 和其他 AI 服务
 
-## Installation
+## 安装
 
-### npm Installation (Recommended)
+### npm 安装（推荐）
 
 ```bash
 npm install -g ai-account-switch
 ```
 
-After installation, the `ais` command will be available globally.
+安装后，`ais` 命令将在全局可用。
 
-**Troubleshooting**: If you encounter "command not found" after installation:
+**故障排除**：如果安装后提示"命令未找到"：
 
 ```bash
-# Check npm global bin path
+# 查看 npm 全局 bin 路径
 npm config get prefix
 
-# Add to PATH (Linux/macOS)
+# 添加到 PATH (Linux/macOS)
 export PATH="$PATH:$(npm config get prefix)/bin"
 
-# On Windows, add to system PATH: %APPDATA%\npm
+# Windows 上，添加到系统 PATH：%APPDATA%\npm
 ```
 
-### Install from Source
+### 从源码安装
 
 ```bash
-# Clone the repository
+# 克隆仓库
 git clone https://github.com/yourusername/ai-agent-user-swith.git
 cd ai-agent-user-swith
 
-# Install dependencies
+# 安装依赖
 npm install
 
-# Link the CLI tool globally
+# 全局链接 CLI 工具
 npm link
 ```
 
-## Usage
+## 使用方法
 
-### Commands Overview
+### 命令概览
 
-| Command | Alias | Description |
-|---------|-------|-------------|
-| `ais add [name]` | - | Add a new account configuration |
-| `ais list` | `ls` | List all available accounts |
-| `ais use [name]` | - | Set account for current project |
-| `ais info` | - | Show current project's account info |
-| `ais current` | - | Show current account name |
-| `ais remove [name]` | `rm` | Remove an account |
-| `ais model list` | `ls` | List all model groups for current account |
-| `ais model add [name]` | - | Add a new model group |
-| `ais model use <name>` | - | Switch to a different model group |
-| `ais model remove [name]` | `rm` | Remove a model group |
-| `ais model show [name]` | - | Show model group configuration |
-| `ais mcp add [name]` | - | Add a new MCP server |
-| `ais mcp list` | `ls` | List all MCP servers |
-| `ais mcp show [name]` | - | Show MCP server details |
-| `ais mcp update [name]` | - | Update MCP server configuration |
-| `ais mcp remove [name]` | `rm` | Remove an MCP server |
-| `ais mcp enable [name]` | - | Enable MCP server for current project |
-| `ais mcp disable [name]` | - | Disable MCP server for current project |
-| `ais mcp enabled` | - | Show enabled MCP servers |
-| `ais mcp sync` | - | Sync MCP configuration to Claude Code |
-| `ais ui` | - | Start web-based UI manager |
-| `ais paths` | - | Show configuration file paths |
-| `ais doctor` | - | Diagnose configuration issues |
-| `ais export <name>` | - | Export account as JSON |
-| `ais help` | - | Display help information |
-| `ais --version` | - | Show version number |
+| 命令 | 别名 | 描述 |
+|------|------|------|
+| `ais add [name]` | - | 添加新的账户配置 |
+| `ais list` | `ls` | 列出所有可用账户 |
+| `ais use [name]` | - | 为当前项目设置账户 |
+| `ais info` | - | 显示当前项目的账户信息 |
+| `ais current` | - | 显示当前账户名称 |
+| `ais remove [name]` | `rm` | 删除账户 |
+| `ais model list` | `ls` | 列出当前账户的所有模型组 |
+| `ais model add [name]` | - | 添加新的模型组 |
+| `ais model use <name>` | - | 切换到不同的模型组 |
+| `ais model remove [name]` | `rm` | 删除模型组 |
+| `ais model show [name]` | - | 显示模型组配置 |
+| `ais mcp add [name]` | - | 添加新的 MCP 服务器 |
+| `ais mcp list` | `ls` | 列出所有 MCP 服务器 |
+| `ais mcp show [name]` | - | 显示 MCP 服务器详情 |
+| `ais mcp update [name]` | - | 更新 MCP 服务器配置 |
+| `ais mcp remove [name]` | `rm` | 删除 MCP 服务器 |
+| `ais mcp enable [name]` | - | 为当前项目启用 MCP 服务器 |
+| `ais mcp disable [name]` | - | 为当前项目禁用 MCP 服务器 |
+| `ais mcp enabled` | - | 显示已启用的 MCP 服务器 |
+| `ais mcp sync` | - | 同步 MCP 配置到 Claude Code |
+| `ais ui` | - | 启动 Web UI 管理界面 |
+| `ais paths` | - | 显示配置文件路径 |
+| `ais doctor` | - | 诊断 Claude Code 配置问题 |
+| `ais export <name>` | - | 导出账户为 JSON 格式 |
+| `ais help` | - | 显示帮助信息 |
+| `ais --version` | - | 显示版本号 |
 
-### Quick Start
+### 快速开始
 
-#### 1. Add an Account
+#### 1. 添加账户
 
-Add your first account interactively:
+交互式添加第一个账户：
 
 ```bash
 ais add
 ```
 
-Or specify a name directly:
+或直接指定名称：
 
 ```bash
 ais add my-claude-account
 ```
 
-You'll be prompted to enter:
-- Account type (Claude, Codex, CCR, Droids, Other)
+系统将提示你输入：
+- 账户类型（Claude、Codex、CCR、Droids、其他）
 - API Key
-- API URL (optional)
-- Organization ID (optional)
-- Email (optional)
-- Description (optional)
-- Custom environment variables (optional)
-  - Enter in `KEY=VALUE` format (e.g., `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`)
-  - The tool will display all added variables before completion
-  - Press Enter without input to finish adding variables
+- API URL（可选）
+- Email（可选）
+- 描述（可选）
+- 自定义环境变量（可选）
+  - 使用 `KEY=VALUE` 格式输入（例如：`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`）
+  - 工具会在完成前显示所有已添加的变量
+  - 直接按回车（不输入）即可完成添加
 
-#### 2. List All Accounts
+#### 2. 列出所有账户
 
-View all your configured accounts:
+查看所有已配置的账户：
 
 ```bash
 ais list
-# or
+# 或
 ais ls
 ```
 
-The active account for the current project will be marked with a green dot.
+当前项目激活的账户将用绿色圆点标记。
 
-#### 3. Switch Account for Current Project
+#### 3. 为当前项目切换账户
 
-Set which account to use in your current project:
+设置当前项目使用的账户：
 
 ```bash
 ais use my-claude-account
 ```
 
-Or select interactively:
+或交互式选择：
 
 ```bash
 ais use
 ```
 
-**Note:** This command automatically generates `.claude/settings.local.json` for Claude Code CLI integration.
-You can run this command from any subdirectory within your project - it will automatically find the project root.
+**注意**：此命令会自动生成 `.claude/settings.local.json` 文件用于 Claude Code CLI 集成。
+如果检测到当前项目是 Git 仓库，还会自动将配置文件添加到 `.gitignore` 中，避免将敏感信息提交到版本控制。
+你可以在项目的任何子目录中运行此命令 - 它会自动找到项目根目录。
 
-#### 4. Check Current Project Info
+#### 4. 查看当前项目信息
 
-See which account is active for your current project:
+查看当前项目激活的账户：
 
 ```bash
 ais info
 ```
 
-Or just show the account name:
+或仅显示账户名称：
 
 ```bash
 ais current
 ```
 
-**Note:** These commands work from any subdirectory within your project, similar to how git commands work.
+**注意**：这些命令可以在项目的任何子目录中使用，类似 git 命令的工作方式。
 
-#### 5. Remove an Account
+#### 5. 使用 Web UI 管理界面
 
-Remove an account you no longer need:
+启动可视化管理界面:
+
+```bash
+ais ui
+```
+
+这将在浏览器中打开 Web UI,服务器会自动使用一个随机的高位端口(49152-65535)。如果端口被占用,会自动尝试其他端口,提供以下功能:
+
+**界面特性:**
+- **账号管理**: 可视化的卡片界面,显示所有账号信息
+- **添加/编辑账号**: 友好的表单界面,支持所有配置项
+- **删除账号**: 一键删除,带确认提示
+- **搜索过滤**: 实时搜索账号名称、邮箱或类型
+- **批量操作**:
+  - 导出所有账号为 JSON 文件
+  - 从 JSON 文件导入账号(支持覆盖选项)
+- **主题切换**:
+  - iOS 风格的 Switch 开关
+  - 支持浅色和深色主题
+  - 默认跟随系统主题设置
+- **多语言支持**:
+  - 中文/英文一键切换
+  - 界面默认使用中文
+  - 语言设置自动保存
+
+**UI 使用提示:**
+- 所有修改实时同步到本地配置
+- 关闭浏览器窗口不影响数据
+- 按 `Ctrl+C` 停止 Web 服务器
+- 支持在任何浏览器中使用
+
+#### 6. 删除账户
+
+删除不再需要的账户：
 
 ```bash
 ais remove old-account
-# or
+# 或
 ais rm
 ```
 
-### Advanced Usage
+### 高级用法
 
-#### Show Configuration Paths
+#### 显示配置路径
 
-See where your configurations are stored:
+查看配置文件的存储位置：
 
 ```bash
 ais paths
 ```
 
-#### Export Account Configuration
+#### 诊断配置问题
 
-Export an account's configuration as JSON:
+如果 Claude Code 使用了错误的账户，运行诊断：
+
+```bash
+ais doctor
+```
+
+此命令会检查：
+- 当前目录和项目根目录
+- AIS 项目配置
+- Claude Code 配置
+- 全局 Claude 配置
+- 提供解决建议
+
+#### 导出账户配置
+
+以 JSON 格式导出账户配置：
 
 ```bash
 ais export my-claude-account
 ```
 
-## Configuration
+## 配置
 
-### Global Configuration
+### 全局配置
 
-All accounts are stored globally in your home directory:
+所有账户都存储在用户主目录的全局配置中：
 
 - **macOS/Linux**: `~/.ai-account-switch/config.json`
 - **Windows**: `%USERPROFILE%\.ai-account-switch\config.json`
 
-### Project Configuration
+### 项目配置
 
-Each project stores its active account reference in:
+每个项目将其活动账户引用存储在：
 
 ```
 ./.ais-project-config
 ```
 
-This file is created automatically when you run `ais use` and should be added to `.gitignore`.
+此文件在运行 `ais use` 时自动创建，应添加到 `.gitignore` 中。
 
-### Claude Code Integration
+### Claude Code 集成
 
-When you run `ais use`, the tool automatically creates `.claude/settings.local.json` with the following structure:
+运行 `ais use` 时，工具会自动创建 `.claude/settings.local.json`，结构如下：
 
 ```json
 {
   "env": {
     "ANTHROPIC_AUTH_TOKEN": "your-api-key",
     "ANTHROPIC_BASE_URL": "your-api-url",
-    "ANTHROPIC_ORGANIZATION_ID": "your-org-id",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
   },
   "permissions": {
@@ -232,15 +286,15 @@ When you run `ais use`, the tool automatically creates `.claude/settings.local.j
 }
 ```
 
-This ensures Claude Code CLI automatically uses the correct account for your project.
+这确保 Claude Code CLI 自动使用项目的正确账户。
 
-### Codex Integration
+### Codex 集成
 
-When you add a **Codex** type account and run `ais use`, the tool automatically creates a profile in `~/.codex/config.toml` and a `.codex-profile` file in your project directory.
+当你添加 **Codex** 类型账户并运行 `ais use` 时，工具会自动在 `~/.codex/config.toml` 中创建 profile，并在项目目录中创建 `.codex-profile` 文件。
 
-#### Adding a Codex Account
+#### 添加 Codex 账户
 
-When adding a Codex account, you'll see helpful configuration tips:
+添加 Codex 账户时，你会看到有用的配置提示：
 
 ```bash
 ais add my-codex-account
@@ -256,44 +310,44 @@ ais add my-codex-account
 ? Enter API URL (e.g., https://api.example.com or https://api.example.com/v1): https://zone.veloera.org
 ```
 
-**Important Notes:**
-- AIS automatically adds `/v1` to the API URL if it's missing
-- The configuration uses `wire_api = "chat"` (OpenAI-compatible format)
-- This prevents common issues like Cloudflare 400 errors
+**重要说明：**
+- AIS 会自动为 API URL 添加 `/v1` 路径（如果缺少）
+- 配置使用 `wire_api = "chat"`（OpenAI 兼容格式）
+- 这可以防止常见的 Cloudflare 400 错误
 
-#### Using Codex with Your Project
+#### 在项目中使用 Codex
 
-After running `ais use` with a Codex account:
+使用 Codex 账户运行 `ais use` 后：
 
 ```bash
 cd ~/my-project
 ais use my-codex-account
 
-# Output:
+# 输出：
 # ✓ Switched to account 'my-codex-account' for current project.
 # ✓ Codex profile created: ais_my-project
 #   Use: codex --profile ais_my-project [prompt]
 ```
 
-The tool creates:
-1. **Global Profile**: `~/.codex/config.toml` with your account configuration
-2. **Project Reference**: `.codex-profile` containing the profile name
+工具会创建：
+1. **全局 Profile**：`~/.codex/config.toml` 包含你的账户配置
+2. **项目引用**：`.codex-profile` 包含 profile 名称
 
-#### Running Codex
+#### 运行 Codex
 
-Use Codex with the generated profile:
+使用生成的 profile 运行 Codex：
 
 ```bash
-# In your project directory
+# 在项目目录中
 codex --profile ais_my-project "your prompt here"
 
-# Or use the profile name from .codex-profile
+# 或使用 .codex-profile 中的 profile 名称
 codex --profile $(cat .codex-profile) "your prompt"
 ```
 
-#### Codex Configuration Structure
+#### Codex 配置结构
 
-The generated configuration in `~/.codex/config.toml`:
+在 `~/.codex/config.toml` 中生成的配置：
 
 ```toml
 # AIS Profile for project: /path/to/your/project
@@ -307,61 +361,61 @@ wire_api = "chat"
 http_headers = { "Authorization" = "Bearer sk-xxx..." }
 ```
 
-#### Switching Between Projects
+#### 在不同项目间切换
 
-Each project can use a different Codex account:
+每个项目可以使用不同的 Codex 账户：
 
 ```bash
-# Project A
+# 项目 A
 cd ~/project-a
 ais use codex-account-1
 codex --profile ais_project-a "implement feature X"
 
-# Project B
+# 项目 B
 cd ~/project-b
 ais use codex-account-2
 codex --profile ais_project-b "fix bug Y"
 ```
 
-#### Troubleshooting Codex
+#### Codex 故障排除
 
-**Error: "duplicate key" in TOML**
-- This happens if profiles weren't cleaned up properly
-- Solution: Run `ais use <account>` again to regenerate the configuration
+**错误："duplicate key" in TOML**
+- 这是因为 profile 没有正确清理
+- 解决方案：再次运行 `ais use <account>` 重新生成配置
 
-**Error: "400 Bad Request" from Cloudflare**
-- This usually means the API URL is incorrect
-- Solution: Make sure your API URL includes `/v1` or let AIS add it automatically
-- Run `ais use <account>` to regenerate with the correct configuration
+**错误："400 Bad Request" from Cloudflare**
+- 这通常意味着 API URL 不正确
+- 解决方案：确保 API URL 包含 `/v1` 或让 AIS 自动添加
+- 运行 `ais use <account>` 使用正确的配置重新生成
 
-**Check Codex Configuration**
+**检查 Codex 配置**
 ```bash
-# View your Codex profile
+# 查看你的 Codex profile
 cat .codex-profile
 
-# Check the configuration
+# 检查配置
 grep -A 10 "$(cat .codex-profile)" ~/.codex/config.toml
 
-# Or use the doctor command
+# 或使用 doctor 命令
 ais doctor
 ```
 
-### CCR (Claude Code Router) Integration
+### CCR (Claude Code Router) 集成
 
-[Claude Code Router](https://github.com/musistudio/claude-code-router) is a powerful routing layer for Claude Code that allows you to use multiple AI providers and models seamlessly.
+[Claude Code Router](https://github.com/musistudio/claude-code-router) 是一个强大的 Claude Code 路由层，允许你无缝使用多个 AI 提供商和模型。
 
-When you add a **CCR** type account and run `ais use`, the tool automatically:
-1. Updates `~/.claude-code-router/config.json` with Provider and Router configuration
-2. Generates `.claude/settings.local.json` pointing to the local CCR Router
-3. Automatically restarts CCR Router to apply changes
+当你添加 **CCR** 类型账户并运行 `ais use` 时，工具会自动：
+1. 更新 `~/.claude-code-router/config.json` 中的 Provider 和 Router 配置
+2. 生成指向本地 CCR Router 的 `.claude/settings.local.json`
+3. 自动重启 CCR Router 以应用更改
 
-**Prerequisites:**
-- Install Claude Code Router: `npm install -g @musistudio/claude-code-router`
-- Start CCR Router: `ccr start`
+**前提条件：**
+- 安装 Claude Code Router：`npm install -g @musistudio/claude-code-router`
+- 启动 CCR Router：`ccr start`
 
-#### Adding a CCR Account
+#### 添加 CCR 账户
 
-When adding a CCR account, you'll see helpful configuration tips:
+添加 CCR 账户时，你会看到有用的配置提示：
 
 ```bash
 ais add my-ccr-account
@@ -381,20 +435,20 @@ ais add my-ccr-account
 ? Enter think model: gemini-2.5-pro
 ```
 
-**Important Notes:**
-- Default API URL is `http://localhost:3000/v1/chat/completions`
-- You need to specify three models: default, background, and think
-- Models are automatically deduplicated in the Provider configuration
+**重要说明：**
+- 默认 API URL 是 `http://localhost:3000/v1/chat/completions`
+- 你需要指定三个模型：default、background 和 think
+- 模型会在 Provider 配置中自动去重
 
-#### Using CCR with Your Project
+#### 在项目中使用 CCR
 
-After running `ais use` with a CCR account:
+使用 CCR 账户运行 `ais use` 后：
 
 ```bash
 cd ~/my-project
 ais use my-ccr-account
 
-# Output:
+# 输出：
 # ✓ Switched to account 'my-ccr-account' for current project.
 # 🔄 Restarting CCR Router...
 # ✓ CCR Router restarted successfully
@@ -407,27 +461,27 @@ ais use my-ccr-account
 #    Claude Code will use CCR Router to route requests
 ```
 
-The tool:
-1. **Updates CCR Config**: Adds/updates Provider in `~/.claude-code-router/config.json`
-2. **Updates Router**: Sets default, background, and think models
-3. **Generates Claude Config**: Creates `.claude/settings.local.json` with `ANTHROPIC_BASE_URL` pointing to CCR Router
-4. **Restarts CCR**: Automatically runs `ccr restart` to apply changes
+工具会：
+1. **更新 CCR 配置**：在 `~/.claude-code-router/config.json` 中添加/更新 Provider
+2. **更新 Router**：设置 default、background 和 think 模型
+3. **生成 Claude 配置**：创建 `.claude/settings.local.json`，`ANTHROPIC_BASE_URL` 指向 CCR Router
+4. **重启 CCR**：自动运行 `ccr restart` 以应用更改
 
-#### Running Claude with CCR
+#### 使用 CCR 运行 Claude
 
-Start Claude interactive session:
+启动 Claude 交互会话：
 
 ```bash
-# In your project directory
+# 在项目目录中
 claude
 
-# Claude Code will automatically use CCR Router
-# Requests are routed based on your CCR configuration
+# Claude Code 会自动使用 CCR Router
+# 请求会根据你的 CCR 配置进行路由
 ```
 
-#### CCR Configuration Structure
+#### CCR 配置结构
 
-The generated configuration in `~/.claude-code-router/config.json`:
+在 `~/.claude-code-router/config.json` 中生成的配置：
 
 ```json
 {
@@ -448,7 +502,7 @@ The generated configuration in `~/.claude-code-router/config.json`:
 }
 ```
 
-The generated configuration in `.claude/settings.local.json`:
+在 `.claude/settings.local.json` 中生成的配置：
 
 ```json
 {
@@ -459,57 +513,57 @@ The generated configuration in `.claude/settings.local.json`:
 }
 ```
 
-#### Switching Between Projects
+#### 在不同项目间切换
 
-Each project can use a different CCR configuration:
+每个项目可以使用不同的 CCR 配置：
 
 ```bash
-# Project A
+# 项目 A
 cd ~/project-a
 ais use ccr-account-1
 claude
 
-# Project B
+# 项目 B
 cd ~/project-b
 ais use ccr-account-2
 claude
 ```
 
-#### Troubleshooting CCR
+#### CCR 故障排除
 
-**Check CCR Configuration**
+**检查 CCR 配置**
 ```bash
-# View your CCR configuration
+# 查看你的 CCR 配置
 cat ~/.claude-code-router/config.json
 
-# View Claude configuration
+# 查看 Claude 配置
 cat .claude/settings.local.json
 
-# Or use the doctor command
+# 或使用 doctor 命令
 ais doctor
 ```
 
-**CCR Router not installed**
-- Install from npm: `npm install -g @musistudio/claude-code-router`
-- Visit the project page: https://github.com/musistudio/claude-code-router
+**CCR Router 未安装**
+- 从 npm 安装：`npm install -g @musistudio/claude-code-router`
+- 访问项目页面：https://github.com/musistudio/claude-code-router
 
-**CCR Router not restarting**
-- Make sure CCR CLI is installed and available in your PATH
-- Run `ccr restart` manually if automatic restart fails
-- Check if CCR Router is running: `ccr status`
+**CCR Router 未重启**
+- 确保 CCR CLI 已安装并在 PATH 中可用
+- 如果自动重启失败，手动运行 `ccr restart`
+- 检查 CCR Router 是否运行：`ccr status`
 
-**Claude not using CCR Router**
-- Verify `ANTHROPIC_BASE_URL` in `.claude/settings.local.json` points to correct port
-- Check CCR Router is running on the configured port
-- Restart Claude Code after configuration changes
+**Claude 未使用 CCR Router**
+- 验证 `.claude/settings.local.json` 中的 `ANTHROPIC_BASE_URL` 指向正确的端口
+- 检查 CCR Router 是否在配置的端口上运行
+- 配置更改后重启 Claude Code
 
-### Droids Integration
+### Droids 集成
 
-When you add a **Droids** type account and run `ais use`, the tool automatically creates a configuration file at `.droids/config.json` in your project directory.
+当你添加 **Droids** 类型账户并运行 `ais use` 时，工具会自动在项目目录中创建 `.droids/config.json` 配置文件。
 
-#### Adding a Droids Account
+#### 添加 Droids 账户
 
-When adding a Droids account, you'll see helpful configuration tips:
+添加 Droids 账户时，你会看到有用的配置提示：
 
 ```bash
 ais add my-droids-account
@@ -527,15 +581,15 @@ ais add my-droids-account
 ? Enter model name: droids-model-v1
 ```
 
-#### Using Droids with Your Project
+#### 在项目中使用 Droids
 
-After running `ais use` with a Droids account:
+使用 Droids 账户运行 `ais use` 后：
 
 ```bash
 cd ~/my-project
 ais use my-droids-account
 
-# Output:
+# 输出：
 # ✓ Switched to account 'my-droids-account' for current project.
 # ✓ Droids configuration generated at: .droids/config.json
 #
@@ -545,23 +599,23 @@ ais use my-droids-account
 #    Droids will automatically use the configuration from .droids/config.json
 ```
 
-The tool creates:
-- **Project Configuration**: `.droids/config.json` with your account settings
+工具会创建：
+- **项目配置**：`.droids/config.json` 包含你的账户设置
 
-#### Running Droids
+#### 运行 Droids
 
-Start Droids interactive session:
+启动 Droids 交互会话：
 
 ```bash
-# In your project directory
+# 在项目目录中
 droid
 
-# Droids will automatically load configuration from .droids/config.json
+# Droids 会自动从 .droids/config.json 加载配置
 ```
 
-#### Droids Configuration Structure
+#### Droids 配置结构
 
-The generated configuration in `.droids/config.json`:
+在 `.droids/config.json` 中生成的配置：
 
 ```json
 {
@@ -574,42 +628,42 @@ The generated configuration in `.droids/config.json`:
 }
 ```
 
-#### Switching Between Projects
+#### 在不同项目间切换
 
-Each project can use a different Droids account:
+每个项目可以使用不同的 Droids 账户：
 
 ```bash
-# Project A
+# 项目 A
 cd ~/project-a
 ais use droids-account-1
 droid
 
-# Project B
+# 项目 B
 cd ~/project-b
 ais use droids-account-2
 droid
 ```
 
-#### Troubleshooting Droids
+#### Droids 故障排除
 
-**Check Droids Configuration**
+**检查 Droids 配置**
 ```bash
-# View your Droids configuration
+# 查看你的 Droids 配置
 cat .droids/config.json
 
-# Or use the doctor command
+# 或使用 doctor 命令
 ais doctor
 ```
 
-**Droids CLI not found**
-- Make sure Droids CLI is installed and available in your PATH
-- Run `droid --version` to verify installation
+**Droids CLI 未找到**
+- 确保 Droids CLI 已安装并在 PATH 中可用
+- 运行 `droid --version` 验证安装
 
-#### Custom Environment Variables
+#### 自定义环境变量
 
-You can add custom environment variables when creating an account. When prompted, enter them in `KEY=VALUE` format:
+在创建账户时可以添加自定义环境变量。在提示时，使用 `KEY=VALUE` 格式输入：
 
-**Input Format:**
+**输入格式：**
 ```
 ? Environment variable (KEY=VALUE format): CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
 ✓ Added: CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
@@ -620,572 +674,519 @@ You can add custom environment variables when creating an account. When prompted
 ? Add another environment variable? (y/N)
 ```
 
-**Common Examples:**
-- `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` - Disable non-essential network traffic
-- `HTTP_PROXY=http://proxy.example.com:8080` - Set HTTP proxy
-- `HTTPS_PROXY=https://proxy.example.com:8080` - Set HTTPS proxy
-- Any other environment variables needed for your setup
+**常见示例：**
+- `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` - 禁用非必要网络流量
+- `HTTP_PROXY=http://proxy.example.com:8080` - 设置 HTTP 代理
+- `HTTPS_PROXY=https://proxy.example.com:8080` - 设置 HTTPS 代理
+- 其他你需要的环境变量
 
-**Features:**
-- One-line input format (`KEY=VALUE`)
-- Real-time display of added variables
-- Press Enter without input to finish
-- Variables are automatically included in `.claude/settings.local.json`
+**功能特性：**
+- 单行输入格式（`KEY=VALUE`）
+- 实时显示已添加的变量
+- 直接按回车即可完成
+- 变量会自动包含在 `.claude/settings.local.json` 文件中
 
-### MCP (Model Context Protocol) Integration
+## 使用示例
 
-AIS supports managing MCP servers globally and enabling them per project. MCP servers extend Claude Code with additional tools and capabilities.
+### 示例 1：设置多个账户
 
-You can manage MCP servers through both **CLI commands** and **Web UI**.
+```bash
+# 添加个人 Claude 账户
+ais add personal-claude
 
-#### Web UI Management (Recommended)
+# 添加工作 Claude 账户
+ais add work-claude
 
-The easiest way to manage MCP servers is through the Web UI:
+# 添加 Codex 账户
+ais add codex-dev
+
+# 添加 Droids 账户
+ais add droids-dev
+
+# 列出所有账户
+ais list
+```
+
+### 示例 2：为不同项目使用不同账户
+
+```bash
+# 在个人项目中
+cd ~/my-personal-project
+ais use personal-claude
+
+# 在工作项目中
+cd ~/work/company-project
+ais use work-claude
+
+# 检查激活的账户
+ais info
+```
+
+### 示例 3：管理账户
+
+```bash
+# 查看所有账户
+ais list
+
+# 检查当前账户
+ais current
+
+# 导出账户配置
+ais export personal-claude
+
+# 删除旧账户
+ais remove old-account
+
+# 查看配置位置
+ais paths
+```
+
+### 示例 4：诊断问题
+
+```bash
+# 如果 Claude Code 使用了错误的账户
+cd ~/your-project
+ais doctor
+
+# 根据诊断建议操作
+# 然后重新设置账户
+ais use correct-account
+```
+
+## 安全注意事项
+
+- API 密钥仅存储在本地机器上
+- 全局配置文件包含敏感凭证
+- `ais use` 命令会自动将配置文件添加到 `.gitignore` (如果项目是 Git 仓库)
+- 始终验证 `.gitignore` 包含以下文件：
+  - `.ais-project-config`
+  - `.claude/settings.local.json`
+- 切勿将账户凭证提交到版本控制
+- 显示 API 密钥时会进行掩码处理（仅显示前 4 位和后 4 位字符）
+
+## 平台兼容性
+
+| 平台 | 状态 | 备注 |
+|------|------|------|
+| macOS | ✅ 完全支持 | 已在 macOS 10.15+ 上测试 |
+| Linux | ✅ 完全支持 | 已在 Ubuntu 20.04+ 上测试 |
+| Windows | ✅ 完全支持 | 已在 Windows 10+ 上测试 |
+
+## 系统要求
+
+- **Node.js**: >= 16.0.0
+- **npm**: >= 7.0.0
+
+**注意**: 此工具需要 Node.js 16 或更高版本（因为 commander@11.x 依赖要求）。你可以使用以下命令检查当前版本:
+```bash
+node --version
+npm --version
+```
+
+如果需要升级 Node.js，请访问 [nodejs.org](https://nodejs.org/) 或使用版本管理器如 [nvm](https://github.com/nvm-sh/nvm)。
+
+## 项目结构
+
+```
+ai-agent-user-swith/
+├── bin/
+│   └── ais.js              # 可执行入口点
+├── src/
+│   ├── index.js            # 主 CLI 程序
+│   ├── commands.js         # 命令实现
+│   └── config.js           # 配置管理器
+├── .github/
+│   └── workflows/
+│       └── release.yml     # GitHub Actions 自动发布
+├── package.json
+├── .gitignore
+├── .npmignore
+├── README.md               # 英文文档
+├── README_ZH.md            # 中文文档
+├── NPM_PUBLISH.md          # npm 发布指南
+└── RELEASE.md              # 发布指南
+```
+
+## 故障排除
+
+### 命令未找到：ais
+
+如果安装后出现此错误，确保已链接包：
+
+```bash
+npm link
+```
+
+### 权限被拒绝
+
+在 Unix 系统上，确保 bin 文件可执行：
+
+```bash
+chmod +x bin/ais.js
+```
+
+### 未找到账户
+
+确保你已添加至少一个账户：
+
+```bash
+ais add
+```
+
+### Claude Code 使用了错误的账户
+
+如果 Claude Code 使用了非预期的账户：
+
+1. 运行诊断：
+   ```bash
+   ais doctor
+   ```
+
+2. 检查全局 Claude 配置是否覆盖了项目配置：
+   - 如果 `~/.claude/settings.json` 包含 `env.ANTHROPIC_AUTH_TOKEN`，可能会冲突
+   - **解决方案**：从全局配置中删除 `env` 部分，或仅保留 `permissions`
+
+3. 确保从项目目录或子目录启动 Claude Code
+
+4. 重新生成项目配置：
+   ```bash
+   ais use <你的账户名>
+   ```
+
+### 在子目录中未找到项目配置
+
+工具应该在任何子目录中工作。如果不行：
+
+```bash
+# 确保你在已配置的项目中
+cd /path/to/your/project
+ais use <account>
+
+# 然后从子目录尝试
+cd src/
+ais current  # 应该显示你的账户
+```
+
+### MCP (Model Context Protocol) 集成
+
+AIS 支持全局管理 MCP 服务器并按项目启用。MCP 服务器为 Claude Code 扩展额外的工具和功能。
+
+你可以通过 **CLI 命令**和 **Web UI** 两种方式管理 MCP 服务器。
+
+#### Web UI 管理（推荐）
+
+管理 MCP 服务器最简单的方式是通过 Web UI：
 
 ```bash
 ais ui
 ```
 
-Then click on the **"MCP 服务器" (MCP Servers)** tab to:
+然后点击 **"MCP 服务器"** 标签页：
 
-**Features:**
-- ✅ **Add MCP Servers**: Click "+ 添加 MCP 服务器" to add new servers
-  - Choose server type: stdio, sse, or http
-  - Fill in configuration (command, URL, environment variables, etc.)
-  - Add description for easy identification
-- ✅ **Edit Servers**: Click "编辑" to modify existing server configurations
-- ✅ **Test Connection**: Click "测试连接" to verify server availability
-- ✅ **Enable/Disable**: Toggle servers for the current project with one click
-- ✅ **Search & Filter**: Quickly find servers by name or type
-- ✅ **Delete Servers**: Remove servers you no longer need
-- ✅ **Sync Configuration**: Click "同步配置" to sync to Claude Code
+**功能：**
+- ✅ **添加 MCP 服务器**：点击"+ 添加 MCP 服务器"添加新服务器
+  - 选择服务器类型：stdio、sse 或 http
+  - 填写配置（命令、URL、环境变量等）
+  - 添加描述便于识别
+- ✅ **编辑服务器**：点击"编辑"修改现有服务器配置
+- ✅ **测试连接**：点击"测试连接"验证服务器可用性
+- ✅ **启用/禁用**：一键切换当前项目的服务器状态
+- ✅ **搜索和筛选**：快速按名称或类型查找服务器
+- ✅ **删除服务器**：删除不再需要的服务器
+- ✅ **同步配置**：点击"同步配置"同步到 Claude Code
 
-**Benefits:**
-- Intuitive visual interface
-- Real-time validation
-- No need to remember command syntax
-- See all servers at a glance
-- Status indicators (enabled/disabled)
-- Supports Chinese and English
+**优势：**
+- 直观的可视化界面
+- 实时验证
+- 无需记忆命令语法
+- 一目了然查看所有服务器
+- 状态指示器（已启用/未启用）
+- 支持中英文
 
-**Example Workflow:**
-1. Start Web UI: `ais ui`
-2. Click "MCP 服务器" tab
-3. Click "+ 添加 MCP 服务器"
-4. Select type: "stdio"
-5. Enter command: "npx"
-6. Enter arguments: "@modelcontextprotocol/server-filesystem,/path"
-7. Click "保存"
-8. Click "测试连接" to verify
-9. Click "启用" to enable for current project
+**示例工作流程：**
+1. 启动 Web UI：`ais ui`
+2. 点击"MCP 服务器"标签页
+3. 点击"+ 添加 MCP 服务器"
+4. 选择类型："stdio"
+5. 输入命令："npx"
+6. 输入参数："@modelcontextprotocol/server-filesystem,/path"
+7. 点击"保存"
+8. 点击"测试连接"验证
+9. 点击"启用"为当前项目启用
 
-#### CLI Management
+#### CLI 管理
 
-You can also manage MCP servers through CLI commands:
+你也可以通过 CLI 命令管理 MCP 服务器：
 
-##### Adding an MCP Server
+##### 添加 MCP 服务器
 
-Add a new MCP server interactively:
+交互式添加新的 MCP 服务器：
 
 ```bash
 ais mcp add filesystem
 ```
 
-You'll be prompted to configure:
-- **Server type**: stdio, sse, or http
-- **Command and arguments** (for stdio type)
-- **URL** (for sse/http types)
-- **Environment variables** (optional)
-- **Headers** (optional for sse/http)
-- **Description** (optional)
+你将被提示配置：
+- **服务器类型**：stdio、sse 或 http
+- **命令和参数**（stdio 类型）
+- **URL**（sse/http 类型）
+- **环境变量**（可选）
+- **请求头**（sse/http 可选）
+- **描述**（可选）
 
-**Example: Adding a stdio MCP server**
+**示例：添加 stdio MCP 服务器**
 ```bash
 $ ais mcp add filesystem
-? Select MCP server type: stdio
-? Enter command: npx
-? Enter arguments (comma-separated): @modelcontextprotocol/server-filesystem,/Users/user/workspace
-? Add environment variables? Yes
-? Environment variable (KEY=VALUE): ALLOWED_PATHS=/Users/user/workspace
-? Add another? No
-? Enter description: File system access MCP server
-✓ MCP server 'filesystem' added successfully!
+? 选择 MCP 服务器类型: stdio
+? 输入命令: npx
+? 输入参数（逗号分隔）: @modelcontextprotocol/server-filesystem,/Users/user/workspace
+? 添加环境变量? 是
+? 环境变量 (KEY=VALUE): ALLOWED_PATHS=/Users/user/workspace
+? 添加另一个? 否
+? 输入描述: 文件系统访问 MCP 服务器
+✓ MCP 服务器 'filesystem' 添加成功！
 ```
 
-##### Listing MCP Servers
+##### 列出 MCP 服务器
 
-View all configured MCP servers:
+查看所有配置的 MCP 服务器：
 
 ```bash
 ais mcp list
 ```
 
-Output shows server name, type, enabled status, and description.
+输出显示服务器名称、类型、启用状态和描述。
 
-##### Enabling MCP Servers for a Project
+##### 为项目启用 MCP 服务器
 
-Enable an MCP server for the current project:
+为当前项目启用 MCP 服务器：
 
 ```bash
 cd ~/my-project
 ais mcp enable filesystem
 ```
 
-This will:
-1. Add the server to the project's enabled list
-2. Update `.claude/settings.local.json` with the MCP configuration
-3. Make the MCP server available to Claude Code in this project
+这将：
+1. 将服务器添加到项目的启用列表
+2. 更新 `.claude/settings.local.json` 的 MCP 配置
+3. 使 MCP 服务器在此项目中对 Claude Code 可用
 
-##### Managing MCP Servers
+##### 管理 MCP 服务器
 
 ```bash
-# Show MCP server details
+# 显示 MCP 服务器详情
 ais mcp show filesystem
 
-# Update MCP server configuration
+# 更新 MCP 服务器配置
 ais mcp update filesystem
 
-# Disable MCP server for current project
+# 为当前项目禁用 MCP 服务器
 ais mcp disable filesystem
 
-# Show enabled MCP servers for current project
+# 显示当前项目已启用的 MCP 服务器
 ais mcp enabled
 
-# Sync MCP configuration to Claude Code
+# 同步 MCP 配置到 Claude Code
 ais mcp sync
 
-# Remove an MCP server
+# 删除 MCP 服务器
 ais mcp remove filesystem
 ```
 
-#### MCP Configuration Structure
+## 贡献
 
-MCP servers are stored globally in `~/.ai-account-switch/config.json`:
+欢迎贡献！你可以：
+- 报告 bug
+- 建议新功能
+- 提交 pull request
 
-```json
-{
-  "accounts": { ... },
-  "mcpServers": {
-    "filesystem": {
-      "name": "filesystem",
-      "type": "stdio",
-      "command": "npx",
-      "args": ["@modelcontextprotocol/server-filesystem", "/Users/user/workspace"],
-      "env": {
-        "ALLOWED_PATHS": "/Users/user/workspace"
-      },
-      "description": "File system access MCP server",
-      "createdAt": "2025-01-03T00:00:00.000Z",
-      "updatedAt": "2025-01-03T00:00:00.000Z"
-    }
-  }
-}
-```
+## 许可证
 
-Project-level enabled servers are stored in `.ais-project-config`:
+MIT License - 欢迎在你的项目中使用此工具！
 
-```json
-{
-  "activeAccount": "my-account",
-  "projectPath": "/path/to/project",
-  "setAt": "2025-01-03T00:00:00.000Z",
-  "enabledMcpServers": ["filesystem"]
-}
-```
-
-When enabled, MCP servers are automatically added to `.claude/settings.local.json`:
-
-```json
-{
-  "env": { ... },
-  "permissions": { ... },
-  "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": ["@modelcontextprotocol/server-filesystem", "/Users/user/workspace"],
-      "env": {
-        "ALLOWED_PATHS": "/Users/user/workspace"
-      }
-    }
-  }
-}
-```
-
-#### MCP Server Types
-
-**stdio**: Communicates via standard input/output
-- Requires: `command`, `args`
-- Optional: `env`
-
-**sse**: Server-Sent Events
-- Requires: `url`
-- Optional: `headers`
-
-**http**: HTTP requests
-- Requires: `url`
-- Optional: `headers`
-
-## Examples
-
-### Example 1: Setting Up Multiple Accounts
-
-```bash
-# Add your personal Claude account
-ais add personal-claude
-
-# Add your work Claude account
-ais add work-claude
-
-# Add a Codex account
-ais add codex-dev
-
-# Add a Droids account
-ais add droids-dev
-
-# List all accounts
-ais list
-```
-
-### Example 2: Using Different Accounts for Different Projects
-
-```bash
-# In your personal project
-cd ~/my-personal-project
-ais use personal-claude
-
-# In your work project
-cd ~/work/company-project
-ais use work-claude
-
-# Check what's active
-ais info
-```
-
-### Example 3: Managing Accounts
-
-```bash
-# View all accounts
-ais list
-
-# Check current account
-ais current
-
-# Export an account config
-ais export personal-claude
-
-# Remove old accounts
-ais remove old-account
-
-# View config locations
-ais paths
-```
-
-## Security Notes
-
-- API keys are stored locally on your machine only
-- The global configuration file contains sensitive credentials
-- Always add `.ais-project-config` to your `.gitignore`
-- Never commit account credentials to version control
-- API keys are masked when displayed (shows first and last 4 characters only)
-
-## Platform Compatibility
-
-| Platform | Status | Notes |
-|----------|--------|-------|
-| macOS | ✅ Fully Supported | Tested on macOS 10.15+ |
-| Linux | ✅ Fully Supported | Tested on Ubuntu 20.04+ |
-| Windows | ✅ Fully Supported | Tested on Windows 10+ |
-
-## Requirements
-
-- **Node.js**: >= 16.0.0
-- **npm**: >= 7.0.0
-
-**Note**: This tool requires Node.js version 16 or higher (due to commander@11.x dependency). You can check your current version with:
-```bash
-node --version
-npm --version
-```
-
-If you need to upgrade Node.js, visit [nodejs.org](https://nodejs.org/) or use a version manager like [nvm](https://github.com/nvm-sh/nvm).
-
-## Project Structure
-
-```
-ai-agent-user-swith/
-├── bin/
-│   └── ais.js              # Executable entry point
-├── src/
-│   ├── index.js            # Main CLI program
-│   ├── commands.js         # Command implementations
-│   └── config.js           # Configuration manager
-├── package.json
-├── .gitignore
-└── README.md
-```
-
-## Troubleshooting
-
-### Command not found: ais
-
-If you get this error after installation, make sure you've linked the package:
-
-```bash
-npm link
-```
-
-### Permission denied
-
-On Unix systems, ensure the bin file is executable:
-
-```bash
-chmod +x bin/ais.js
-```
-
-### No accounts found
-
-Make sure you've added at least one account:
-
-```bash
-ais add
-```
-
-### Claude Code uses wrong account
-
-If Claude Code is using a different account than expected:
-
-1. Run diagnostics:
-   ```bash
-   ais doctor
-   ```
-
-2. Check if global Claude config is overriding project config:
-   - If `~/.claude/settings.json` contains `env.ANTHROPIC_AUTH_TOKEN`, it may conflict
-   - **Solution**: Remove the `env` section from global config, or only keep `permissions`
-
-3. Ensure you're starting Claude Code from your project directory or subdirectory
-
-4. Regenerate project config:
-   ```bash
-   ais use <your-account-name>
-   ```
-
-### Project config not found in subdirectory
-
-The tool should work in any subdirectory. If it doesn't:
-
-```bash
-# Make sure you're within a configured project
-cd /path/to/your/project
-ais use <account>
-
-# Then try from subdirectory
-cd src/
-ais current  # Should show your account
-```
-
-## Contributing
-
-Contributions are welcome! Feel free to:
-- Report bugs
-- Suggest new features
-- Submit pull requests
-
-## License
-
-MIT License - feel free to use this tool in your projects!
-
-## Changelog
+## 更新日志
 
 ### v1.7.0
-- **MCP Web UI Management**:
-  - Complete MCP server management through Web UI
-  - Tab navigation system (Accounts / MCP Servers)
-  - Add, edit, delete MCP servers with intuitive interface
-  - Test MCP server connections
-  - Enable/disable servers per project with one click
-  - Search and filter functionality
-  - Real-time validation and status indicators
-  - Full internationalization (Chinese/English)
-- **MCP CLI Integration**:
-  - Global MCP server management with `ais mcp` commands
-  - Project-level MCP server enable/disable functionality
-  - Support for stdio, sse, and http MCP server types
-  - Automatic Claude Code configuration generation with MCP servers
-  - Commands: `ais mcp add`, `ais mcp list`, `ais mcp show`, `ais mcp update`, `ais mcp remove`
-  - Project commands: `ais mcp enable`, `ais mcp disable`, `ais mcp enabled`, `ais mcp sync`
-  - Interactive MCP server configuration with validation
-  - Environment variables and headers support for MCP servers
-- **Bug Fixes**:
-  - Fixed account data not showing after adding tabs
-  - Fixed "switchTab is not defined" error
-  - Fixed incorrect search result messages
-- **Improvements**:
-  - Better user experience with clearer messages
-  - Modern JavaScript practices (event listeners)
-  - Improved code quality and maintainability
-  - 32 automated tests all passing
+- **MCP Web UI 管理**：
+  - 通过 Web UI 完整管理 MCP 服务器
+  - 标签页导航系统（账号管理 / MCP 服务器）
+  - 直观界面添加、编辑、删除 MCP 服务器
+  - 测试 MCP 服务器连接
+  - 一键启用/禁用项目级服务器
+  - 搜索和筛选功能
+  - 实时验证和状态指示器
+  - 完整的中英文支持
+- **MCP CLI 集成**：
+  - 使用 `ais mcp` 命令全局管理 MCP 服务器
+  - 项目级 MCP 服务器启用/禁用功能
+  - 支持 stdio、sse 和 http MCP 服务器类型
+  - 自动生成 Claude Code 的 MCP 配置
+  - 命令：`ais mcp add`、`ais mcp list`、`ais mcp show`、`ais mcp update`、`ais mcp remove`
+  - 项目命令：`ais mcp enable`、`ais mcp disable`、`ais mcp enabled`、`ais mcp sync`
+  - 交互式 MCP 服务器配置，带验证
+  - 支持 MCP 服务器的环境变量和请求头
+- **Bug 修复**：
+  - 修复添加标签页后账号数据不显示的问题
+  - 修复 "switchTab is not defined" 错误
+  - 修复搜索结果提示信息不正确的问题
+- **改进**：
+  - 更好的用户体验，提示信息更清晰
+  - 现代 JavaScript 实践（事件监听器）
+  - 改进代码质量和可维护性
+  - 32 个自动化测试全部通过
 
 ### v1.6.0
-- **CCR (Claude Code Router) Integration**:
-  - Added full support for Claude Code Router
-  - Automatic generation of `~/.claude-code-router/config.json` configuration
-  - Provider and Router configuration management
-  - Automatic CCR Router restart after configuration changes
-  - Claude Code integration with local CCR Router endpoint
-  - Support for default, background, and think model routing
-- **Web UI Enhancements**:
-  - Added account status checking with color-coded indicators (green: available, orange: unstable, red: unavailable)
-  - Status results are saved and displayed on page load
-  - Real-time status checking with "状态检查" button
-  - Improved account card layout with status in top-right corner
-  - Enhanced visual feedback during status checks
-- **Configuration Improvements**:
-  - CCR accounts automatically generate both CCR and Claude configurations
-  - Dynamic port reading from CCR config for Claude integration
-  - Better error handling and user feedback
-
-### v1.5.8
-- **Bilingual Support (双语支持)**:
-  - All CLI commands now display both English and Chinese text (所有 CLI 命令现在同时显示中英文)
-  - Help messages, prompts, and output messages are bilingual (帮助信息、提示和输出消息都支持双语)
-  - Better user experience for Chinese-speaking users (为中文用户提供更好的使用体验)
-  - No configuration needed - works out of the box (无需配置 - 开箱即用)
-  - Uses parentheses format for better clarity: `English text (中文)` (使用括号格式更清晰)
+- **CCR (Claude Code Router) 集成**：
+  - 完整支持 Claude Code Router
+  - 自动生成 `~/.claude-code-router/config.json` 配置
+  - Provider 和 Router 配置管理
+  - 配置更改后自动重启 CCR Router
+  - Claude Code 与本地 CCR Router 端点集成
+  - 支持 default、background 和 think 模型路由
+- **Web UI 增强**：
+  - 添加账户状态检查，带颜色指示器（绿色：可用，橙色：不稳定，红色：不可用）
+  - 状态结果会保存并在页面加载时显示
+  - 实时状态检查，带"状态检查"按钮
+  - 改进账户卡片布局，状态显示在右上角
+  - 状态检查期间增强视觉反馈
+- **配置改进**：
+  - CCR 账户自动生成 CCR 和 Claude 两种配置
+  - 从 CCR 配置动态读取端口用于 Claude 集成
+  - 更好的错误处理和用户反馈
 
 ### v1.5.7
-- **Droids Integration**:
-  - Added full support for Droids AI assistant
-  - Automatic generation of `.droids/config.json` configuration
-  - Simple model configuration for Droids accounts
-  - Interactive session command: `droid`
-  - Enhanced `ais doctor` command with Droids configuration detection
-- **UI Enhancements**:
-  - Added type filter dropdown for quick account filtering
-  - Color-coded account cards by type (Claude: blue, Codex: purple, Droids: green, Other: orange)
-  - Left border color indicators on account cards
-  - Improved visual hierarchy and user experience
-- **Model Configuration Improvements**:
-  - Separated model configuration for different account types
-  - Claude: Complex model groups with multiple model settings
-  - Codex/Droids: Simple model field for straightforward configuration
-  - All model settings moved to collapsible "Advanced Configuration" section
-- **Better User Guidance**:
-  - Enhanced `ais use` command with clear next-step instructions
-  - Type-specific usage examples for each AI assistant
-  - Interactive mode prompts instead of one-time command examples
+- **Droids 集成**：
+  - 完整支持 Droids AI 助手
+  - 自动生成 `.droids/config.json` 配置文件
+  - Droids 账户的简单模型配置
+  - 交互会话命令：`droid`
+  - 增强 `ais doctor` 命令，支持 Droids 配置检测
+- **UI 增强**：
+  - 添加类型筛选下拉框，快速过滤账户
+  - 按类型为账户卡片着色（Claude: 蓝色，Codex: 紫色，Droids: 绿色，Other: 橙色）
+  - 账户卡片左侧边框颜色指示器
+  - 改进视觉层次和用户体验
+- **模型配置改进**：
+  - 为不同账户类型分离模型配置
+  - Claude: 复杂的模型组，支持多个模型设置
+  - Codex/Droids: 简单的模型字段，配置更直观
+  - 所有模型设置移至可折叠的"高级配置"区域
+- **更好的用户指引**：
+  - 增强 `ais use` 命令，提供清晰的下一步操作说明
+  - 为每个 AI 助手提供特定类型的使用示例
+  - 交互模式提示而非一次性命令示例
 
 ### v1.5.1
-- **Codex Integration Enhancements**:
-  - Added full support for Codex CLI with profile-based configuration
-  - Automatic generation of `~/.codex/config.toml` profiles for Codex accounts
-  - Project-level `.codex-profile` file for easy profile reference
-  - Smart API URL handling: automatically adds `/v1` path if missing
-  - Uses OpenAI-compatible `wire_api = "chat"` format
-  - Prevents Cloudflare 400 errors with correct configuration
-- **Improved User Experience**:
-  - Configuration tips displayed when adding Codex accounts
-  - Usage instructions shown after account creation
-  - Enhanced `ais doctor` command with Codex configuration detection
-  - Better duplicate profile cleanup in TOML files
-- **Bug Fixes**:
-  - Fixed duplicate profile key errors in Codex configuration
-  - Improved profile deletion regex patterns
-  - Separated Claude and Codex configuration generation logic
-- **Documentation**:
-  - Comprehensive Codex integration guide in README
-  - Troubleshooting section for common Codex issues
-  - Examples for multi-project Codex usage
+- **Codex 集成增强**：
+  - 完整支持 Codex CLI 的 profile 配置
+  - 自动为 Codex 账户生成 `~/.codex/config.toml` profiles
+  - 项目级 `.codex-profile` 文件方便引用 profile
+  - 智能 API URL 处理：自动添加 `/v1` 路径（如果缺少）
+  - 使用 OpenAI 兼容的 `wire_api = "chat"` 格式
+  - 通过正确配置防止 Cloudflare 400 错误
+- **用户体验改进**：
+  - 添加 Codex 账户时显示配置提示
+  - 账户创建后显示使用说明
+  - 增强 `ais doctor` 命令，支持 Codex 配置检测
+  - 改进 TOML 文件中的重复 profile 清理
+- **Bug 修复**：
+  - 修复 Codex 配置中的重复 profile key 错误
+  - 改进 profile 删除的正则表达式模式
+  - 分离 Claude 和 Codex 配置生成逻辑
+- **文档更新**：
+  - README 中添加全面的 Codex 集成指南
+  - 常见 Codex 问题的故障排除部分
+  - 多项目 Codex 使用示例
 
 ### v1.5.0
-- **Model Groups Management System**:
-  - Refactored model configuration to use flexible Model Groups
-  - Each account can have multiple model groups with different configurations
-  - Quick switching between model groups with automatic Claude config updates
-- **New CLI Commands**:
-  - `ais model list/ls` - List all model groups for current account
-  - `ais model add [name]` - Create a new model group
-  - `ais model use <name>` - Switch to a different model group
-  - `ais model remove/rm [name]` - Remove a model group
-  - `ais model show [name]` - Show model group configuration
-- **Enhancements**:
-  - Enhanced account creation workflow with model group support
-  - Web UI updated with collapsible model group management
-  - Fixed model configuration not switching when changing accounts
-  - Better color consistency in CLI output
-  - DEFAULT_MODEL auto-fills other model configs when not specified
-- **Backward Compatibility**:
-  - Maintains support for old modelConfig structure
-  - Existing accounts continue to work without migration
+- **模型组管理系统**：
+  - 重构模型配置为灵活的模型组（Model Groups）系统
+  - 每个账户可以拥有多个不同配置的模型组
+  - 快速切换模型组，自动更新 Claude 配置
+- **新增 CLI 命令**：
+  - `ais model list/ls` - 列出当前账户的所有模型组
+  - `ais model add [name]` - 创建新的模型组
+  - `ais model use <name>` - 切换到不同的模型组
+  - `ais model remove/rm [name]` - 删除模型组
+  - `ais model show [name]` - 显示模型组配置详情
+- **功能增强**：
+  - 增强账户创建流程，支持模型组配置
+  - Web UI 更新，支持可折叠的模型组管理界面
+  - 修复切换账户时模型配置不更新的问题
+  - 优化 CLI 输出颜色一致性
+  - DEFAULT_MODEL 自动填充其他未设置的模型配置
+- **向后兼容**：
+  - 保持对旧 modelConfig 结构的支持
+  - 现有账户无需迁移即可继续使用
 
 ### v1.4.0
-- **Added Web UI Management Interface**:
-  - Modern single-page application with dark/light theme support
-  - Bilingual support (English/Chinese), default English
-  - Visual account management: CRUD operations at a glance
-  - Import/Export functionality: batch manage account configurations
-  - Real-time search and filter accounts
-  - Custom environment variables configuration
-  - Theme follows system settings automatically
-  - iOS-style theme toggle switch
-- **Port Optimization**:
-  - UI server uses random high ports (49152-65535)
-  - Automatic port conflict detection and retry
-- **UI Improvements**:
-  - Fixed inconsistent button positioning in account cards
-  - Buttons now consistently fixed at card bottom
-- **Removed Organization ID**:
-  - Simplified account configuration process
-  - Removed organization ID option from CLI and UI
+- **添加 Web UI 管理界面**：
+  - 现代化单页面应用，支持深色/浅色主题
+  - 中英文双语支持，默认中文
+  - 可视化账号管理：增删改查一目了然
+  - 导入/导出功能：批量管理账号配置
+  - 实时搜索过滤账号
+  - 自定义环境变量配置
+  - 主题自动跟随系统设置
+  - iOS 风格的主题切换开关
+- **端口优化**：
+  - UI 服务器使用随机高位端口（49152-65535）
+  - 自动检测端口冲突并重试
+- **界面改进**：
+  - 修复账号卡片按钮位置不一致问题
+  - 按钮始终固定在卡片底部
+- **移除组织 ID 配置**：
+  - 简化账号配置流程
+  - 移除 CLI 和 UI 中的组织 ID 选项
 
 ### v1.3.0
-- **Improved custom environment variables input**:
-  - One-line `KEY=VALUE` format input (e.g., `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`)
-  - Real-time display of added variables during configuration
-  - Press Enter without input to finish adding variables
-  - Better error messages and user guidance
-- Enhanced documentation with detailed examples and usage instructions
+- **改进自定义环境变量输入**：
+  - 支持单行 `KEY=VALUE` 格式输入（例如：`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`）
+  - 配置过程中实时显示已添加的变量
+  - 直接按回车即可完成变量添加
+  - 更清晰的错误提示和用户指引
+- 增强文档，添加详细的示例和使用说明
 
 ### v1.2.0
-- Added custom environment variables support for accounts
-- Added `ais doctor` command for configuration diagnostics
-- Enhanced `ais help` with all new features
-- Updated installation documentation (npm as recommended method)
-- Improved PATH configuration instructions
-- Display custom env variables in `ais list` and `ais info`
+- 添加账户自定义环境变量支持
+- 添加 `ais doctor` 命令用于配置诊断
+- 增强 `ais help` 显示所有新功能
+- 更新安装文档（npm 作为推荐安装方式）
+- 改进 PATH 配置说明
+- 在 `ais list` 和 `ais info` 中显示自定义环境变量
 
 ### v1.1.0
-- Added smart directory detection (works in any subdirectory)
-- Automatic Claude Code `.claude/settings.local.json` generation
-- Project root display in `ais info` command
-- Improved cross-platform compatibility
+- 添加智能目录检测（在任何子目录中工作）
+- 自动生成 Claude Code `.claude/settings.local.json` 配置
+- 在 `ais info` 命令中显示项目根目录
+- 改进跨平台兼容性
 
 ### v1.0.0
-- Initial release
-- Basic account management (add, list, remove)
-- Project-specific account switching
-- Cross-platform support
-- Interactive CLI prompts
-- Account export functionality
+- 初始版本
+- 基本账户管理（添加、列出、删除）
+- 项目级账户切换
+- 跨平台支持
+- 交互式 CLI 提示
+- 账户导出功能
 
-## Future Enhancements
+## 未来增强
 
-Potential features for future versions:
-- Account validation
-- Bulk import/export
-- Account templates
-- Environment variable export
-- Account sharing (encrypted)
-- Cloud sync support
-- Account usage statistics
+未来版本的潜在功能：
+- 账户验证
+- 批量导入/导出
+- 账户模板
+- 环境变量导出
+- 账户共享（加密）
+- 云同步支持
+- 账户使用统计
 
-## Support
+## 支持
 
-If you encounter any issues or have questions:
-1. Check the troubleshooting section
-2. Review existing issues
-3. Create a new issue with detailed information
+如果遇到任何问题或有疑问：
+1. 查看故障排除部分
+2. 查看现有 issues
+3. 创建新 issue 并提供详细信息
 
 ---
 
-**Happy coding with your AI assistants!** 🤖
+**祝你与 AI 助手编码愉快！** 🤖
