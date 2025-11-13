@@ -49,6 +49,15 @@ FIXED-ISSUES.md
 SEARCH-FIX.md
 QUICK-TEST.md
 TEST-NOW.md
-RELEASE-v1.7.0.md
+RELEASE-v*.md
 test-ui.html
 verify-implementation.js
+
+# Development and testing files (local only)
+IMPLEMENTATION-SUMMARY.md
+MANUAL-TEST-GUIDE.md
+TEST-REPORT.md
+CHANGELOG-v*.md
+demo-*.js
+test-*.js
+verify-*.js

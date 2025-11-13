@@ -60,12 +60,22 @@ async function addAccount(name, options) {
         );
         console.log(
             chalk.gray(
-                "   • API URL should include the full path (e.g., https://api.example.com/v1) (API URL 应包含完整路径,例如: https://api.example.com/v1)"
+                "   • For domain-only URLs (e.g., https://api.example.com), /v1 will be added automatically"
             )
         );
         console.log(
             chalk.gray(
-                "   • AIS will automatically add /v1 if missing (AIS 会自动添加 /v1 如果缺失)"
+                "     对于仅域名的 URL (例如 https://api.example.com), 将自动添加 /v1"
+            )
+        );
+        console.log(
+            chalk.gray(
+                "   • URLs with existing paths (e.g., https://api.example.com/v2) will remain unchanged"
+            )
+        );
+        console.log(
+            chalk.gray(
+                "     已有路径的 URL (例如 https://api.example.com/v2) 将保持不变"
             )
         );
         console.log(
@@ -121,7 +131,11 @@ async function addAccount(name, options) {
             name: "apiUrl",
             message:
                 typeAnswer.type === "Codex"
-                    ? "Enter API URL (请输入 API URL) (e.g., https://api.example.com or https://api.example.com/v1) :"
+                    ? "Enter API URL (请输入 API URL)\n" +
+                      "  Examples (示例):\n" +
+                      "    https://api.example.com → will add /v1 (将添加 /v1)\n" +
+                      "    https://api.example.com/v2 → will keep as is (保持不变)\n" +
+                      "  URL:"
                     : typeAnswer.type === "CCR"
                     ? "Enter API URL (请输入 API URL):"
                     : "Enter API URL (optional) (请输入 API URL,可选):",

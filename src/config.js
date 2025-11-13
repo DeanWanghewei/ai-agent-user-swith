@@ -556,10 +556,23 @@ class ConfigManager {
         profileConfig += `model = "${account.model}"\n`;
       }
 
-      // Ensure API URL has proper path
+      // Smart /v1 path handling
       let baseUrl = account.apiUrl || '';
-      if (baseUrl && !baseUrl.match(/\/v1\/?$/)) {
-        baseUrl = baseUrl.replace(/\/$/, '') + '/v1';
+      if (baseUrl) {
+        // Remove trailing slashes
+        baseUrl = baseUrl.replace(/\/+$/, '');
+
+        // Check if URL already has a path beyond the domain
+        // Pattern: protocol://domain or protocol://domain:port (no path)
+        const isDomainOnly = baseUrl.match(/^https?:\/\/[^\/]+$/);
+
+        // Only add /v1 if:
+        // 1. URL is domain-only (no path), OR
+        // 2. URL explicitly ends with /v1 already (ensure consistency)
+        if (isDomainOnly) {
+          baseUrl += '/v1';
+        }
+        // If URL has a path (e.g., /v2, /custom, /api), keep it as is
       }
 
       // Remove existing provider if it exists (simpler than updating)
