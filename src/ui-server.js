@@ -2,6 +2,7 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs');
 const ConfigManager = require('./config');
+const { WIRE_API_MODES, DEFAULT_WIRE_API } = require('./config');
 
 class UIServer {
   constructor(port = null) {
@@ -1491,6 +1492,18 @@ class UIServer {
                     <label for="apiUrl" data-i18n="apiUrl">API URL (可选)</label>
                     <input type="text" id="apiUrl" data-i18n-placeholder="apiUrlPlaceholder" placeholder="https://api.anthropic.com">
                 </div>
+                <!-- Wire API selection for Codex accounts -->
+                <div class="form-group" id="wireApiGroup" style="display: none;">
+                    <label for="wireApi">Wire API 模式</label>
+                    <select id="wireApi">
+                        <option value="chat">chat - HTTP Headers 认证 (OpenAI 兼容)</option>
+                        <option value="responses">responses - auth.json 认证 (requires_openai_auth)</option>
+                    </select>
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        chat: API key 存储在 HTTP headers 中<br>
+                        responses: API key 存储在 ~/.codex/auth.json 中
+                    </small>
+                </div>
                 <div class="form-group">
                     <label for="email" data-i18n="email">邮箱 (可选)</label>
                     <input type="email" id="email" data-i18n-placeholder="emailPlaceholder" placeholder="user@example.com">
@@ -1615,6 +1628,13 @@ class UIServer {
     </div>
 
     <script>
+        // Constants for wire API modes (injected from backend)
+        const WIRE_API_MODES = {
+            CHAT: '${WIRE_API_MODES.CHAT}',
+            RESPONSES: '${WIRE_API_MODES.RESPONSES}'
+        };
+        const DEFAULT_WIRE_API = '${DEFAULT_WIRE_API}';
+
         // i18n translations
         const translations = {
             zh: {
@@ -2021,6 +2041,12 @@ class UIServer {
                             <div class="info-value">\${data.model}</div>
                         </div>
                         \` : ''}
+                        \${data.type === 'Codex' ? \`
+                        <div class="account-info">
+                            <div class="info-label">Wire API</div>
+                            <div class="info-value">\${data.wireApi || (DEFAULT_WIRE_API + ' (default)')}</div>
+                        </div>
+                        \` : ''}
                         \${data.type === 'CCR' && data.ccrConfig ? \`
                         <div class="account-info">
                             <div class="info-label">CCR Provider</div>
@@ -2051,6 +2077,12 @@ class UIServer {
             const simpleModelGroup = document.getElementById('simpleModelGroup');
             const claudeModelGroup = document.getElementById('claudeModelGroup');
             const ccrModelGroup = document.getElementById('ccrModelGroup');
+            const wireApiGroup = document.getElementById('wireApiGroup');
+
+            // Show/hide wire_api field for Codex accounts
+            if (wireApiGroup) {
+                wireApiGroup.style.display = accountType === 'Codex' ? 'block' : 'none';
+            }
 
             if (accountType === 'Codex' || accountType === 'Droids') {
                 simpleModelGroup.style.display = 'block';
@@ -2117,6 +2149,12 @@ class UIServer {
             if (account.type === 'Codex' || account.type === 'Droids') {
                 // Load simple model field
                 document.getElementById('simpleModel').value = account.model || '';
+
+                // Load wire_api for Codex accounts
+                if (account.type === 'Codex') {
+                    document.getElementById('wireApi').value = account.wireApi || DEFAULT_WIRE_API;
+                }
+
                 // Clear model groups and CCR config
                 document.getElementById('modelGroupsList').innerHTML = '';
                 modelGroupCount = 0;
@@ -2378,6 +2416,14 @@ class UIServer {
                 const simpleModel = document.getElementById('simpleModel').value.trim();
                 if (simpleModel) {
                     accountData.model = simpleModel;
+                }
+
+                // Add wire_api for Codex accounts
+                if (accountType === 'Codex') {
+                    const wireApi = document.getElementById('wireApi').value;
+                    if (wireApi) {
+                        accountData.wireApi = wireApi;
+                    }
                 }
             } else if (accountType === 'CCR') {
                 // Collect CCR config

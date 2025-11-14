@@ -2,6 +2,22 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+// Constants for wire API modes
+const WIRE_API_MODES = {
+  CHAT: 'chat',
+  RESPONSES: 'responses'
+};
+
+const DEFAULT_WIRE_API = WIRE_API_MODES.CHAT;
+
+// Constants for account types
+const ACCOUNT_TYPES = {
+  CLAUDE: 'Claude',
+  CODEX: 'Codex',
+  CCR: 'CCR',
+  DROIDS: 'Droids'
+};
+
 /**
  * Cross-platform configuration manager
  * Stores global accounts in user home directory
@@ -587,11 +603,26 @@ class ConfigManager {
         profileConfig += `base_url = "${baseUrl}"\n`;
       }
 
-      // Determine wire_api: use "chat" for most APIs (OpenAI-compatible)
-      profileConfig += `wire_api = "chat"\n`;
+      // Determine wire_api based on account configuration (default to chat for backward compatibility)
+      const wireApi = account.wireApi || DEFAULT_WIRE_API;
 
-      // Add authentication header
-      profileConfig += `http_headers = { "Authorization" = "Bearer ${account.apiKey}" }\n`;
+      if (wireApi === WIRE_API_MODES.CHAT) {
+        // Chat mode: use HTTP headers for authentication
+        profileConfig += `wire_api = "${WIRE_API_MODES.CHAT}"\n`;
+        profileConfig += `http_headers = { "Authorization" = "Bearer ${account.apiKey}" }\n`;
+
+        // Note: We do NOT clear auth.json here because:
+        // 1. auth.json is a global file shared by all projects
+        // 2. Other projects may be using responses mode and need the API key
+        // 3. Chat mode doesn't use auth.json anyway, so no conflict exists
+      } else if (wireApi === WIRE_API_MODES.RESPONSES) {
+        // Responses mode: use auth.json for authentication
+        profileConfig += `wire_api = "${WIRE_API_MODES.RESPONSES}"\n`;
+        profileConfig += `requires_openai_auth = true\n`;
+
+        // Update auth.json with API key
+        this.updateCodexAuthJson(account.apiKey);
+      }
     }
 
     // Remove all old profiles with the same name (including duplicates)
@@ -618,6 +649,146 @@ class ConfigManager {
     // Create a helper script in project directory
     const helperScript = path.join(projectRoot, '.codex-profile');
     fs.writeFileSync(helperScript, profileName, 'utf8');
+  }
+
+  /**
+   * Read auth.json file
+   * @private
+   * @returns {Object} Parsed auth data or empty object
+   */
+  _readAuthJson(authJsonFile) {
+    if (!fs.existsSync(authJsonFile)) {
+      return {};
+    }
+
+    try {
+      const content = fs.readFileSync(authJsonFile, 'utf8');
+      return JSON.parse(content);
+    } catch (parseError) {
+      const chalk = require('chalk');
+      console.warn(
+        chalk.yellow(
+          `⚠ Warning: Could not parse existing auth.json, will create new file (警告: 无法解析现有 auth.json，将创建新文件)`
+        )
+      );
+      return {};
+    }
+  }
+
+  /**
+   * Write auth.json file atomically with proper permissions
+   * Uses atomic write (temp file + rename) to prevent corruption from concurrent access
+   * @private
+   * @param {string} authJsonFile - Path to auth.json
+   * @param {Object} authData - Auth data to write
+   */
+  _writeAuthJson(authJsonFile, authData) {
+    const chalk = require('chalk');
+    const tempFile = `${authJsonFile}.tmp.${process.pid}`;
+
+    try {
+      // Write to temporary file first (atomic operation)
+      fs.writeFileSync(tempFile, JSON.stringify(authData, null, 2), 'utf8');
+
+      // Set file permissions to 600 (owner read/write only) for security
+      if (process.platform !== 'win32') {
+        fs.chmodSync(tempFile, 0o600);
+      }
+
+      // Atomically rename temp file to actual file
+      // This is atomic on POSIX systems and prevents corruption
+      fs.renameSync(tempFile, authJsonFile);
+    } catch (error) {
+      // Clean up temp file if it exists
+      if (fs.existsSync(tempFile)) {
+        try {
+          fs.unlinkSync(tempFile);
+        } catch (cleanupError) {
+          // Ignore cleanup errors
+        }
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Clear OPENAI_API_KEY in ~/.codex/auth.json for chat mode
+   * @deprecated This method is no longer called automatically.
+   * Chat mode doesn't require clearing auth.json since it doesn't use it.
+   */
+  clearCodexAuthJson() {
+    const chalk = require('chalk');
+    const codexDir = path.join(os.homedir(), '.codex');
+    const authJsonFile = path.join(codexDir, 'auth.json');
+
+    try {
+      // Ensure .codex directory exists
+      if (!fs.existsSync(codexDir)) {
+        fs.mkdirSync(codexDir, { recursive: true });
+      }
+
+      // Read existing auth data
+      const authData = this._readAuthJson(authJsonFile);
+
+      // Clear OPENAI_API_KEY (set to empty string)
+      authData.OPENAI_API_KEY = "";
+
+      // Write atomically with proper permissions
+      this._writeAuthJson(authJsonFile, authData);
+
+      console.log(
+        chalk.cyan(
+          `✓ Cleared OPENAI_API_KEY in auth.json (chat mode) (已清空 auth.json 中的 OPENAI_API_KEY)`
+        )
+      );
+    } catch (error) {
+      console.error(
+        chalk.yellow(
+          `⚠ Warning: Failed to clear auth.json: ${error.message} (警告: 清空 auth.json 失败)`
+        )
+      );
+      // Don't throw error, just warn - this is not critical for chat mode
+    }
+  }
+
+  /**
+   * Update ~/.codex/auth.json with API key for responses mode
+   * @param {string} apiKey - API key to store in auth.json
+   * @throws {Error} If file operations fail
+   */
+  updateCodexAuthJson(apiKey) {
+    const chalk = require('chalk');
+    const codexDir = path.join(os.homedir(), '.codex');
+    const authJsonFile = path.join(codexDir, 'auth.json');
+
+    try {
+      // Ensure .codex directory exists
+      if (!fs.existsSync(codexDir)) {
+        fs.mkdirSync(codexDir, { recursive: true });
+      }
+
+      // Read existing auth data
+      const authData = this._readAuthJson(authJsonFile);
+
+      // Update OPENAI_API_KEY
+      authData.OPENAI_API_KEY = apiKey;
+
+      // Write atomically with proper permissions
+      this._writeAuthJson(authJsonFile, authData);
+
+      console.log(
+        chalk.green(
+          `✓ Updated auth.json at: ${authJsonFile} (已更新 auth.json)`
+        )
+      );
+    } catch (error) {
+      console.error(
+        chalk.red(
+          `✗ Failed to update auth.json: ${error.message} (更新 auth.json 失败)`
+        )
+      );
+      throw error;
+    }
   }
 
   /**
@@ -1160,3 +1331,6 @@ class ConfigManager {
 }
 
 module.exports = ConfigManager;
+module.exports.WIRE_API_MODES = WIRE_API_MODES;
+module.exports.DEFAULT_WIRE_API = DEFAULT_WIRE_API;
+module.exports.ACCOUNT_TYPES = ACCOUNT_TYPES;

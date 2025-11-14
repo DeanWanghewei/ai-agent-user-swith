@@ -1,6 +1,7 @@
 const chalk = require("chalk");
 const inquirer = require("inquirer");
 const ConfigManager = require("../config");
+const { WIRE_API_MODES, DEFAULT_WIRE_API, ACCOUNT_TYPES } = require("../config");
 const { maskApiKey } = require("./helpers");
 const { promptForModelGroup } = require("./model");
 
@@ -53,6 +54,9 @@ async function addAccount(name, options) {
         },
     ]);
 
+    // Store wire_api selection for Codex accounts
+    let wireApiSelection = null;
+
     // Show configuration tips based on account type
     if (typeAnswer.type === "Codex") {
         console.log(
@@ -81,6 +85,44 @@ async function addAccount(name, options) {
         console.log(
             chalk.gray(
                 "   • Codex uses OpenAI-compatible API format (Codex 使用 OpenAI 兼容的 API 格式)\n"
+            )
+        );
+
+        // Prompt for wire_api mode selection
+        const wireApiAnswer = await inquirer.prompt([
+            {
+                type: "list",
+                name: "wireApi",
+                message: "Select wire_api mode (请选择 wire_api 模式):",
+                choices: [
+                    {
+                        name: "chat - Use API key in HTTP headers (OpenAI-compatible) (在 HTTP 头中使用 API key,OpenAI 兼容)",
+                        value: WIRE_API_MODES.CHAT
+                    },
+                    {
+                        name: "responses - Use API key in auth.json (requires_openai_auth) (在 auth.json 中使用 API key)",
+                        value: WIRE_API_MODES.RESPONSES
+                    }
+                ],
+                default: DEFAULT_WIRE_API
+            }
+        ]);
+
+        wireApiSelection = wireApiAnswer.wireApi;
+
+        // Validate input
+        if (!Object.values(WIRE_API_MODES).includes(wireApiSelection)) {
+            console.log(
+                chalk.yellow(
+                    `⚠ Invalid wire_api mode, using default: ${DEFAULT_WIRE_API} (无效的模式，使用默认值)`
+                )
+            );
+            wireApiSelection = DEFAULT_WIRE_API;
+        }
+
+        console.log(
+            chalk.cyan(
+                `\n✓ Selected wire_api mode (已选择模式): ${wireApiSelection}\n`
             )
         );
     } else if (typeAnswer.type === "Droids") {
@@ -164,6 +206,11 @@ async function addAccount(name, options) {
 
     // Merge type into accountData
     accountData.type = typeAnswer.type;
+
+    // Add wire_api selection for Codex accounts
+    if (typeAnswer.type === "Codex" && wireApiSelection) {
+        accountData.wireApi = wireApiSelection;
+    }
 
     // Handle custom environment variables
     if (accountData.addCustomEnv) {
@@ -454,6 +501,27 @@ async function addAccount(name, options) {
             )
         );
         console.log(chalk.cyan(`   ais use ${name}\n`));
+
+        // Show wire_api mode specific information
+        if (accountData.wireApi === WIRE_API_MODES.RESPONSES) {
+            console.log(
+                chalk.yellow(
+                    "   ⚠ Note: This account uses 'responses' mode (此账号使用 'responses' 模式)"
+                )
+            );
+            console.log(
+                chalk.white(
+                    "   Your API key will be stored in ~/.codex/auth.json (API key 将存储在 ~/.codex/auth.json)\n"
+                )
+            );
+        } else {
+            console.log(
+                chalk.cyan(
+                    "   ✓ This account uses 'chat' mode (此账号使用 'chat' 模式)\n"
+                )
+            );
+        }
+
         console.log(
             chalk.white(
                 "2. Use Codex with the generated profile (使用生成的配置文件运行 Codex):"
@@ -562,6 +630,7 @@ function listAccounts() {
         console.log(`${marker}${nameDisplay}`);
         console.log(`   Type: ${account.type}`);
         console.log(`   API Key: ${maskApiKey(account.apiKey)}`);
+        if (account.apiUrl) console.log(`   API URL: ${account.apiUrl}`);
         if (account.email) console.log(`   Email: ${account.email}`);
         if (account.description)
             console.log(`   Description: ${account.description}`);
@@ -588,6 +657,11 @@ function listAccounts() {
             account.model
         ) {
             console.log(`   Model: ${account.model}`);
+        }
+        // Display wire_api configuration for Codex accounts
+        if (account.type === ACCOUNT_TYPES.CODEX) {
+            const wireApi = account.wireApi || `${DEFAULT_WIRE_API} (default)`;
+            console.log(`   Wire API: ${wireApi}`);
         }
         console.log(
             `   Created: ${new Date(account.createdAt).toLocaleString()}`
@@ -688,6 +762,27 @@ async function useAccount(name) {
                         `✓ Codex profile created (Codex 配置文件已创建): ${profileName}`
                     )
                 );
+
+                // Display wire_api mode information
+                if (account.wireApi === WIRE_API_MODES.RESPONSES) {
+                    console.log(
+                        chalk.yellow(
+                            `✓ Wire API mode: ${WIRE_API_MODES.RESPONSES} (使用 ${WIRE_API_MODES.RESPONSES} 模式)`
+                        )
+                    );
+                    console.log(
+                        chalk.yellow(
+                            `✓ API key stored in ~/.codex/auth.json (API key 已存储在 ~/.codex/auth.json)`
+                        )
+                    );
+                } else {
+                    console.log(
+                        chalk.cyan(
+                            `✓ Wire API mode: ${WIRE_API_MODES.CHAT} (使用 ${WIRE_API_MODES.CHAT} 模式)`
+                        )
+                    );
+                }
+
                 console.log("");
                 console.log(chalk.bold.cyan("📖 Next Steps (下一步):"));
                 console.log(
@@ -877,6 +972,10 @@ function showInfo() {
         projectAccount.model
     ) {
         console.log(`${chalk.cyan("Model:")} ${projectAccount.model}`);
+    }
+    // Display wire_api configuration for Codex accounts
+    if (projectAccount.type === ACCOUNT_TYPES.CODEX && projectAccount.wireApi) {
+        console.log(`${chalk.cyan("Wire API:")} ${projectAccount.wireApi}`);
     }
     console.log(
         `${chalk.cyan("Set At:")} ${new Date(
