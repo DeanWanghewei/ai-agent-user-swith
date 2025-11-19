@@ -623,11 +623,14 @@ function listAccounts() {
         const account = accounts[name];
         const isActive = currentProject && currentProject.name === name;
         const marker = isActive ? chalk.green("● ") : "  ";
+
+        // Display ID and name
+        const idDisplay = chalk.yellow(`[${account.id}]`);
         const nameDisplay = isActive
             ? chalk.green.bold(name)
             : chalk.cyan(name);
 
-        console.log(`${marker}${nameDisplay}`);
+        console.log(`${marker}${idDisplay} ${nameDisplay}`);
         console.log(`   Type: ${account.type}`);
         console.log(`   API Key: ${maskApiKey(account.apiKey)}`);
         if (account.apiUrl) console.log(`   API URL: ${account.apiUrl}`);
@@ -687,9 +690,9 @@ function listAccounts() {
 /**
  * Switch to a specific account for current project
  */
-async function useAccount(name) {
-    if (!name) {
-        // If no name provided, show interactive selection
+async function useAccount(nameOrId) {
+    if (!nameOrId) {
+        // If no name/ID provided, show interactive selection
         const accounts = config.getAllAccounts();
         const accountNames = Object.keys(accounts);
 
@@ -702,21 +705,32 @@ async function useAccount(name) {
             return;
         }
 
+        // Create choices with ID and name
+        const choices = accountNames.map(name => {
+            const account = accounts[name];
+            return {
+                name: `[${account.id}] ${name}`,
+                value: name
+            };
+        });
+
         const answers = await inquirer.prompt([
             {
                 type: "list",
                 name: "accountName",
                 message: "Select an account to use (请选择要使用的账号):",
-                choices: accountNames,
+                choices: choices,
             },
         ]);
 
-        name = answers.accountName;
+        nameOrId = answers.accountName;
     }
 
-    if (!config.accountExists(name)) {
+    // Find account by ID or name
+    const accountInfo = config.getAccountByIdOrName(nameOrId);
+    if (!accountInfo) {
         console.log(
-            chalk.red(`✗ Account '${name}' not found. (未找到账号 '${name}'。)`)
+            chalk.red(`✗ Account '${nameOrId}' not found. (未找到账号 '${nameOrId}'。)`)
         );
         console.log(
             chalk.yellow(
@@ -726,6 +740,7 @@ async function useAccount(name) {
         return;
     }
 
+    const name = accountInfo.name;
     const success = config.setProjectAccount(name);
     if (success) {
         const fs = require("fs");
@@ -920,6 +935,7 @@ function showInfo() {
     console.log(
         chalk.bold("\n📌 Current Project Account Info (当前项目账号信息):\n")
     );
+    console.log(`${chalk.cyan("Account ID:")} ${chalk.yellow(`[${projectAccount.id}]`)}`);
     console.log(
         `${chalk.cyan("Account Name:")} ${chalk.green.bold(
             projectAccount.name
@@ -989,8 +1005,8 @@ function showInfo() {
 /**
  * Remove an account
  */
-async function removeAccount(name) {
-    if (!name) {
+async function removeAccount(nameOrId) {
+    if (!nameOrId) {
         const accounts = config.getAllAccounts();
         const accountNames = Object.keys(accounts);
 
@@ -999,30 +1015,43 @@ async function removeAccount(name) {
             return;
         }
 
+        // Create choices with ID and name
+        const choices = accountNames.map(name => {
+            const account = accounts[name];
+            return {
+                name: `[${account.id}] ${name}`,
+                value: name
+            };
+        });
+
         const answers = await inquirer.prompt([
             {
                 type: "list",
                 name: "accountName",
                 message: "Select an account to remove (请选择要删除的账号):",
-                choices: accountNames,
+                choices: choices,
             },
         ]);
 
-        name = answers.accountName;
+        nameOrId = answers.accountName;
     }
 
-    if (!config.accountExists(name)) {
+    // Find account by ID or name
+    const accountInfo = config.getAccountByIdOrName(nameOrId);
+    if (!accountInfo) {
         console.log(
-            chalk.red(`✗ Account '${name}' not found. (未找到账号 '${name}'。)`)
+            chalk.red(`✗ Account '${nameOrId}' not found. (未找到账号 '${nameOrId}'。)`)
         );
         return;
     }
+
+    const name = accountInfo.name;
 
     const { confirm } = await inquirer.prompt([
         {
             type: "confirm",
             name: "confirm",
-            message: `Are you sure you want to remove account '${name}'? (确定要删除账号 '${name}' 吗?)`,
+            message: `Are you sure you want to remove account '${name}' (ID: ${accountInfo.id})? (确定要删除账号 '${name}' (ID: ${accountInfo.id}) 吗?)`,
             default: false,
         },
     ]);
@@ -1069,30 +1098,34 @@ function showCurrent() {
 /**
  * Export account configuration
  */
-function exportAccount(name) {
-    if (!name) {
+function exportAccount(nameOrId) {
+    if (!nameOrId) {
         console.log(
-            chalk.red("Please specify an account name. (请指定账号名称。)")
+            chalk.red("Please specify an account name or ID. (请指定账号名称或 ID。)")
         );
         console.log(
             chalk.cyan(
-                "Usage: ais export <account-name> (用法: ais export <账号名>)"
+                "Usage: ais export <account-name-or-id> (用法: ais export <账号名或ID>)"
             )
         );
         return;
     }
 
-    const account = config.getAccount(name);
-    if (!account) {
+    // Find account by ID or name
+    const accountInfo = config.getAccountByIdOrName(nameOrId);
+    if (!accountInfo) {
         console.log(
-            chalk.red(`✗ Account '${name}' not found. (未找到账号 '${name}'。)`)
+            chalk.red(`✗ Account '${nameOrId}' not found. (未找到账号 '${nameOrId}'。)`)
         );
         return;
     }
 
+    const name = accountInfo.name;
+    const { name: _, ...account } = accountInfo; // Remove the name property from accountInfo
+
     console.log(
         chalk.bold(
-            `\n📤 Export for account '${name}' (账号 '${name}' 的导出数据):\n`
+            `\n📤 Export for account '${name}' (ID: ${account.id}) (账号 '${name}' 的导出数据):\n`
         )
     );
     console.log(JSON.stringify({ [name]: account }, null, 2));

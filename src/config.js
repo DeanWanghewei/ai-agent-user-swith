@@ -46,8 +46,11 @@ class ConfigManager {
 
     // Create global config file if it doesn't exist
     if (!fs.existsSync(this.globalConfigFile)) {
-      this.saveGlobalConfig({ accounts: {}, mcpServers: {} });
+      this.saveGlobalConfig({ accounts: {}, mcpServers: {}, nextAccountId: 1 });
     }
+
+    // Migrate existing accounts to have IDs
+    this.migrateAccountIds();
   }
 
   /**
@@ -82,9 +85,14 @@ class ConfigManager {
   readGlobalConfig() {
     try {
       const data = fs.readFileSync(this.globalConfigFile, 'utf8');
-      return JSON.parse(data);
+      const config = JSON.parse(data);
+      // Ensure nextAccountId exists
+      if (!config.nextAccountId) {
+        config.nextAccountId = 1;
+      }
+      return config;
     } catch (error) {
-      return { accounts: {}, mcpServers: {} };
+      return { accounts: {}, mcpServers: {}, nextAccountId: 1 };
     }
   }
 
@@ -96,15 +104,83 @@ class ConfigManager {
   }
 
   /**
+   * Migrate existing accounts to have IDs
+   * This ensures backward compatibility by assigning IDs to accounts that don't have one
+   */
+  migrateAccountIds() {
+    const config = this.readGlobalConfig();
+    let needsSave = false;
+
+    // Ensure nextAccountId exists
+    if (!config.nextAccountId) {
+      config.nextAccountId = 1;
+      needsSave = true;
+    }
+
+    // Assign IDs to accounts that don't have one
+    Object.keys(config.accounts || {}).forEach(name => {
+      if (!config.accounts[name].id) {
+        config.accounts[name].id = config.nextAccountId;
+        config.nextAccountId++;
+        needsSave = true;
+      }
+    });
+
+    if (needsSave) {
+      this.saveGlobalConfig(config);
+    }
+  }
+
+  /**
+   * Get account by ID or name
+   * @param {string|number} idOrName - Account ID or name
+   * @returns {Object|null} - Account object with name property, or null if not found
+   */
+  getAccountByIdOrName(idOrName) {
+    const accounts = this.getAllAccounts();
+
+    // Try to parse as ID (number)
+    const id = parseInt(idOrName, 10);
+    if (!isNaN(id)) {
+      // Search by ID
+      for (const [name, account] of Object.entries(accounts)) {
+        if (account.id === id) {
+          return { name, ...account };
+        }
+      }
+    }
+
+    // Search by name
+    const account = accounts[idOrName];
+    if (account) {
+      return { name: idOrName, ...account };
+    }
+
+    return null;
+  }
+
+  /**
    * Add or update an account
    */
   addAccount(name, accountData) {
     const config = this.readGlobalConfig();
+
+    // Assign ID for new accounts
+    const isNewAccount = !config.accounts[name];
+    const accountId = isNewAccount ? config.nextAccountId : config.accounts[name].id;
+
     config.accounts[name] = {
       ...accountData,
+      id: accountId,
       createdAt: config.accounts[name]?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+
+    // Increment nextAccountId only for new accounts
+    if (isNewAccount) {
+      config.nextAccountId++;
+    }
+
     this.saveGlobalConfig(config);
     return true;
   }

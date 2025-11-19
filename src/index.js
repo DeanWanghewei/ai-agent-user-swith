@@ -53,8 +53,8 @@ program
 
 // Use account command
 program
-  .command('use [name]')
-  .description('Set the account to use for the current project (设置当前项目使用的账号)')
+  .command('use [name-or-id]')
+  .description('Set the account to use for the current project by name or ID (通过名称或ID设置当前项目使用的账号)')
   .action(useAccount);
 
 // Show info command
@@ -65,9 +65,9 @@ program
 
 // Remove account command
 program
-  .command('remove [name]')
+  .command('remove [name-or-id]')
   .alias('rm')
-  .description('Remove an account (删除账号)')
+  .description('Remove an account by name or ID (通过名称或ID删除账号)')
   .action(removeAccount);
 
 // Show current account command
@@ -84,8 +84,8 @@ program
 
 // Export account configuration
 program
-  .command('export <name>')
-  .description('Export account configuration as JSON (导出账号配置为 JSON)')
+  .command('export <name-or-id>')
+  .description('Export account configuration as JSON by name or ID (通过名称或ID导出账号配置为 JSON)')
   .action(exportAccount);
 
 // Diagnostic command
@@ -199,36 +199,39 @@ program
     console.log('  ais <command> [options]\n');
 
     console.log(chalk.bold('COMMANDS (命令):'));
-    console.log('  add [name]       Add a new account configuration (with custom env vars) (添加新账号配置,支持自定义环境变量)');
-    console.log('  list, ls         List all available accounts (列出所有可用账号)');
-    console.log('  use [name]       Set the account for current project (设置当前项目使用的账号)');
-    console.log('  info             Show current project\'s account info (显示当前项目的账号信息)');
-    console.log('  current          Show current account name (显示当前账号名称)');
-    console.log('  remove, rm       Remove an account (删除账号)');
-    console.log('  paths            Show configuration file paths (显示配置文件路径)');
-    console.log('  doctor           Diagnose Claude Code configuration issues (诊断 Claude Code 配置问题)');
-    console.log('  export <name>    Export account as JSON (导出账号为 JSON)');
-    console.log('  ui               Start web-based account manager UI (启动基于 Web 的账号管理界面)');
-    console.log('  model            Manage model groups (管理模型组)');
-    console.log('  mcp              Manage MCP servers (管理 MCP 服务器)');
-    console.log('  help             Display this help message (显示此帮助信息)');
-    console.log('  version          Show version number (显示版本号)\n');
+    console.log('  add [name]             Add a new account configuration (with custom env vars) (添加新账号配置,支持自定义环境变量)');
+    console.log('  list, ls               List all available accounts with IDs (列出所有可用账号及其ID)');
+    console.log('  use [name-or-id]       Set the account for current project by name or ID (通过名称或ID设置当前项目使用的账号)');
+    console.log('  info                   Show current project\'s account info (显示当前项目的账号信息)');
+    console.log('  current                Show current account name (显示当前账号名称)');
+    console.log('  remove, rm [name-or-id] Remove an account by name or ID (通过名称或ID删除账号)');
+    console.log('  paths                  Show configuration file paths (显示配置文件路径)');
+    console.log('  doctor                 Diagnose Claude Code configuration issues (诊断 Claude Code 配置问题)');
+    console.log('  export <name-or-id>    Export account as JSON by name or ID (通过名称或ID导出账号为 JSON)');
+    console.log('  ui                     Start web-based account manager UI (启动基于 Web 的账号管理界面)');
+    console.log('  model                  Manage model groups (管理模型组)');
+    console.log('  mcp                    Manage MCP servers (管理 MCP 服务器)');
+    console.log('  help                   Display this help message (显示此帮助信息)');
+    console.log('  version                Show version number (显示版本号)\n');
 
     console.log(chalk.bold('EXAMPLES (示例):'));
     console.log(chalk.gray('  # Add a new account interactively (交互式添加新账号)'));
     console.log('  ais add\n');
     console.log(chalk.gray('  # Add a new account with a name (添加带名称的新账号)'));
     console.log('  ais add my-claude-account\n');
-    console.log(chalk.gray('  # List all accounts (列出所有账号)'));
+    console.log(chalk.gray('  # List all accounts with IDs (列出所有账号及其ID)'));
     console.log('  ais list\n');
-    console.log(chalk.gray('  # Use an account for current project (为当前项目使用某个账号)'));
+    console.log(chalk.gray('  # Use an account by name (通过名称使用账号)'));
     console.log('  ais use my-claude-account\n');
+    console.log(chalk.gray('  # Use an account by ID (通过ID使用账号)'));
+    console.log('  ais use 1\n');
     console.log(chalk.gray('  # Show current project info (显示当前项目信息)'));
     console.log('  ais info\n');
     console.log(chalk.gray('  # Diagnose configuration issues (诊断配置问题)'));
     console.log('  ais doctor\n');
-    console.log(chalk.gray('  # Remove an account (删除账号)'));
-    console.log('  ais remove my-old-account\n');
+    console.log(chalk.gray('  # Remove an account by name or ID (通过名称或ID删除账号)'));
+    console.log('  ais remove my-old-account');
+    console.log('  ais remove 2\n');
     console.log(chalk.gray('  # Start web UI for managing accounts (启动 Web 界面管理账号)'));
     console.log('  ais ui\n');
 

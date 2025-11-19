@@ -66,11 +66,11 @@ npm link
 | Command | Alias | Description |
 |---------|-------|-------------|
 | `ais add [name]` | - | Add a new account configuration |
-| `ais list` | `ls` | List all available accounts |
-| `ais use [name]` | - | Set account for current project |
+| `ais list` | `ls` | List all available accounts with IDs |
+| `ais use [name-or-id]` | - | Set account for current project by name or ID |
 | `ais info` | - | Show current project's account info |
 | `ais current` | - | Show current account name |
-| `ais remove [name]` | `rm` | Remove an account |
+| `ais remove [name-or-id]` | `rm` | Remove an account by name or ID |
 | `ais model list` | `ls` | List all model groups for current account |
 | `ais model add [name]` | - | Add a new model group |
 | `ais model use <name>` | - | Switch to a different model group |
@@ -88,7 +88,7 @@ npm link
 | `ais ui` | - | Start web-based UI manager |
 | `ais paths` | - | Show configuration file paths |
 | `ais doctor` | - | Diagnose configuration issues |
-| `ais export <name>` | - | Export account as JSON |
+| `ais export <name-or-id>` | - | Export account as JSON by name or ID |
 | `ais help` | - | Display help information |
 | `ais --version` | - | Show version number |
 
@@ -122,7 +122,7 @@ You'll be prompted to enter:
 
 #### 2. List All Accounts
 
-View all your configured accounts:
+View all your configured accounts with their IDs:
 
 ```bash
 ais list
@@ -130,14 +130,33 @@ ais list
 ais ls
 ```
 
+Example output:
+```
+📋 Available Accounts:
+
+● [1] my-claude-account
+   Type: Claude
+   API Key: sk-a****xyz
+   ...
+
+  [2] work-codex
+   Type: Codex
+   API Key: sk-b****abc
+   ...
+```
+
 The active account for the current project will be marked with a green dot.
 
 #### 3. Switch Account for Current Project
 
-Set which account to use in your current project:
+Set which account to use in your current project (by name or ID):
 
 ```bash
+# Use account by name
 ais use my-claude-account
+
+# Or use account by ID (faster)
+ais use 1
 ```
 
 Or select interactively:
@@ -996,6 +1015,21 @@ Contributions are welcome! Feel free to:
 MIT License - feel free to use this tool in your projects!
 
 ## Changelog
+
+### v1.9.0
+- **Account ID Feature**:
+  - Automatically assign unique numeric ID to each account (starting from 1)
+  - Quick account switching by ID: `ais use 1`
+  - Remove account by ID: `ais remove 2`
+  - Export account by ID: `ais export 3`
+  - Optimized account list display format: `[ID] AccountName`
+  - ID displayed in yellow color for better visibility
+  - Fully backward compatible: existing accounts automatically assigned IDs
+  - Interactive selection shows both ID and name
+- **Documentation Updates**:
+  - Updated all command descriptions with ID usage examples
+  - Synchronized Chinese and English README
+  - Optimized help command output
 
 ### v1.7.0
 - **MCP Web UI Management**:
