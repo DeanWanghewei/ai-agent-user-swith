@@ -1024,7 +1024,9 @@ ais mcp remove filesystem
 MIT License - 欢迎在你的项目中使用此工具！
 
 ## 更新日志
-
+### v1.9.1
+- **codex帐号添加env 配置方式**：
+  - codex 支持env 临时export user-api-key 的方式认证.
 ### v1.9.0
 - **账号ID功能**：
   - 为每个账号自动分配唯一数字ID（从1开始递增）
