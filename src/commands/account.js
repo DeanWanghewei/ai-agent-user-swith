@@ -102,6 +102,10 @@ async function addAccount(name, options) {
                     {
                         name: "responses - Use API key in auth.json (requires_openai_auth) (在 auth.json 中使用 API key)",
                         value: WIRE_API_MODES.RESPONSES
+                    },
+                    {
+                        name: "env - Use API key from environment variable (从环境变量获取 API key)",
+                        value: WIRE_API_MODES.ENV
                     }
                 ],
                 default: DEFAULT_WIRE_API
@@ -125,6 +129,34 @@ async function addAccount(name, options) {
                 `\n✓ Selected wire_api mode (已选择模式): ${wireApiSelection}\n`
             )
         );
+
+        // If env mode is selected, prompt for environment variable name
+        let envKeyName = null;
+        if (wireApiSelection === WIRE_API_MODES.ENV) {
+            const envKeyAnswer = await inquirer.prompt([
+                {
+                    type: "input",
+                    name: "envKey",
+                    message: "Enter environment variable name for API key (请输入 API key 的环境变量名称):",
+                    default: "AIS_USER_API_KEY",
+                    validate: (input) => {
+                        if (!input.trim()) {
+                            return "Environment variable name is required (环境变量名称不能为空)";
+                        }
+                        if (!/^[A-Z_][A-Z0-9_]*$/.test(input.trim())) {
+                            return "Invalid variable name. Use uppercase letters, numbers, and underscores (e.g., MY_API_KEY) (变量名无效。请使用大写字母、数字和下划线,例如: MY_API_KEY)";
+                        }
+                        return true;
+                    }
+                }
+            ]);
+            envKeyName = envKeyAnswer.envKey.trim();
+            console.log(
+                chalk.cyan(
+                    `\n✓ Environment variable (环境变量): ${envKeyName}\n`
+                )
+            );
+        }
     } else if (typeAnswer.type === "Droids") {
         console.log(
             chalk.cyan("\n📝 Droids Configuration Tips (Droids 配置提示):")
@@ -210,6 +242,10 @@ async function addAccount(name, options) {
     // Add wire_api selection for Codex accounts
     if (typeAnswer.type === "Codex" && wireApiSelection) {
         accountData.wireApi = wireApiSelection;
+        // Add environment variable name for env mode
+        if (wireApiSelection === WIRE_API_MODES.ENV && envKeyName) {
+            accountData.envKey = envKeyName;
+        }
     }
 
     // Handle custom environment variables
@@ -514,6 +550,22 @@ async function addAccount(name, options) {
                     "   Your API key will be stored in ~/.codex/auth.json (API key 将存储在 ~/.codex/auth.json)\n"
                 )
             );
+        } else if (accountData.wireApi === WIRE_API_MODES.ENV) {
+            console.log(
+                chalk.yellow(
+                    "   ⚠ Note: This account uses 'env' mode (此账号使用 'env' 模式)"
+                )
+            );
+            console.log(
+                chalk.white(
+                    `   You need to export the environment variable before using Codex (使用 Codex 前需要导出环境变量):`
+                )
+            );
+            console.log(
+                chalk.cyan(
+                    `   export ${accountData.envKey}="${accountData.apiKey}"\n`
+                )
+            );
         } else {
             console.log(
                 chalk.cyan(
@@ -788,6 +840,22 @@ async function useAccount(nameOrId) {
                     console.log(
                         chalk.yellow(
                             `✓ API key stored in ~/.codex/auth.json (API key 已存储在 ~/.codex/auth.json)`
+                        )
+                    );
+                } else if (account.wireApi === WIRE_API_MODES.ENV) {
+                    console.log(
+                        chalk.yellow(
+                            `✓ Wire API mode: ${WIRE_API_MODES.ENV} (使用 ${WIRE_API_MODES.ENV} 模式)`
+                        )
+                    );
+                    console.log(
+                        chalk.green(
+                            `\n✓ Copy and run this command (复制并执行此命令):`
+                        )
+                    );
+                    console.log(
+                        chalk.cyan.bold(
+                            `   export ${account.envKey || 'AIS_USER_API_KEY'}="${account.apiKey}" && codex --profile ${profileName}`
                         )
                     );
                 } else {

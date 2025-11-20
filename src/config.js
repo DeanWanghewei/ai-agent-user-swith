@@ -5,7 +5,8 @@ const os = require('os');
 // Constants for wire API modes
 const WIRE_API_MODES = {
   CHAT: 'chat',
-  RESPONSES: 'responses'
+  RESPONSES: 'responses',
+  ENV: 'env'
 };
 
 const DEFAULT_WIRE_API = WIRE_API_MODES.CHAT;
@@ -698,23 +699,20 @@ class ConfigManager {
 
         // Update auth.json with API key
         this.updateCodexAuthJson(account.apiKey);
+      } else if (wireApi === WIRE_API_MODES.ENV) {
+        // Env mode: use environment variable for authentication
+        profileConfig += `wire_api = "${WIRE_API_MODES.CHAT}"\n`;
+        const envKey = account.envKey || 'AIS_USER_API_KEY';
+        profileConfig += `env_key = "${envKey}"\n`;
+
+        // Clear auth.json to ensure env mode is used
+        this.clearCodexAuthJson();
       }
     }
 
     // Remove all old profiles with the same name (including duplicates)
-    // Pattern 1: Remove profiles with AIS comment header
-    const commentedProfilePattern = new RegExp(
-      `# AIS Profile for project: [^\\n]*${escapedProjectName}[^\\n]*\\n\\[profiles\\.${escapedProfileName}\\]\\n(?:[^\\[].*\\n)*`,
-      'g'
-    );
-    existingConfig = existingConfig.replace(commentedProfilePattern, '');
-
-    // Pattern 2: Remove standalone profiles without comment
-    const standaloneProfilePattern = new RegExp(
-      `\\n\\[profiles\\.${escapedProfileName}\\]\\n(?:[^\\[].*\\n)*(?=\\n\\[|$)`,
-      'g'
-    );
-    existingConfig = existingConfig.replace(standaloneProfilePattern, '');
+    // Use line-by-line parsing for more reliable cleanup
+    existingConfig = this._removeProfileFromConfig(existingConfig, profileName);
 
     // Append new profile
     const newConfig = existingConfig.trimEnd() + '\n' + profileConfig;
@@ -785,6 +783,68 @@ class ConfigManager {
       }
       throw error;
     }
+  }
+
+  /**
+   * Remove a profile from TOML config string
+   * Uses line-by-line parsing for reliable removal of all instances
+   * @private
+   * @param {string} configContent - The TOML config content
+   * @param {string} profileName - The profile name to remove (e.g., "ais_myproject")
+   * @returns {string} Cleaned config content
+   */
+  _removeProfileFromConfig(configContent, profileName) {
+    const lines = configContent.split('\n');
+    const cleanedLines = [];
+    let skipUntilNextSection = false;
+    const profileSectionHeader = `[profiles.${profileName}]`;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmedLine = line.trim();
+
+      // Check if this is the profile section we want to remove
+      if (trimmedLine === profileSectionHeader) {
+        skipUntilNextSection = true;
+
+        // Remove the AIS comment line before it if present
+        if (cleanedLines.length > 0) {
+          const lastLine = cleanedLines[cleanedLines.length - 1].trim();
+          if (lastLine.startsWith('# AIS Profile for project:')) {
+            cleanedLines.pop();
+          }
+        }
+
+        // Remove trailing empty lines before the profile
+        while (cleanedLines.length > 0 && cleanedLines[cleanedLines.length - 1].trim() === '') {
+          cleanedLines.pop();
+        }
+
+        continue; // Skip the profile header line
+      }
+
+      // If we're in skip mode, check if we've reached the next section
+      if (skipUntilNextSection) {
+        // A new section starts with '[' at the beginning (after trimming)
+        if (trimmedLine.startsWith('[')) {
+          skipUntilNextSection = false;
+          // Don't skip this line - it's the start of a new section
+        } else {
+          // Skip this line as it belongs to the profile we're removing
+          continue;
+        }
+      }
+
+      cleanedLines.push(line);
+    }
+
+    // Join lines and clean up excessive empty lines
+    let result = cleanedLines.join('\n');
+
+    // Replace 3+ consecutive newlines with just 2 (one blank line)
+    result = result.replace(/\n{3,}/g, '\n\n');
+
+    return result;
   }
 
   /**

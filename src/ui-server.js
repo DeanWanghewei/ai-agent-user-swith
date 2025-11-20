@@ -1495,13 +1495,24 @@ class UIServer {
                 <!-- Wire API selection for Codex accounts -->
                 <div class="form-group" id="wireApiGroup" style="display: none;">
                     <label for="wireApi">Wire API 模式</label>
-                    <select id="wireApi">
+                    <select id="wireApi" onchange="toggleEnvKeyField()">
                         <option value="chat">chat - HTTP Headers 认证 (OpenAI 兼容)</option>
                         <option value="responses">responses - auth.json 认证 (requires_openai_auth)</option>
+                        <option value="env">env - 环境变量认证 (Environment Variable)</option>
                     </select>
                     <small style="color: #666; display: block; margin-top: 5px;">
                         chat: API key 存储在 HTTP headers 中<br>
-                        responses: API key 存储在 ~/.codex/auth.json 中
+                        responses: API key 存储在 ~/.codex/auth.json 中<br>
+                        env: API key 从环境变量中读取
+                    </small>
+                </div>
+                <!-- Environment variable name for env mode -->
+                <div class="form-group" id="envKeyGroup" style="display: none;">
+                    <label for="envKey">环境变量名称</label>
+                    <input type="text" id="envKey" placeholder="AIS_USER_API_KEY" pattern="[A-Z_][A-Z0-9_]*">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        使用前需要执行: export YOUR_VAR_NAME="your-api-key"<br>
+                        变量名必须使用大写字母、数字和下划线
                     </small>
                 </div>
                 <div class="form-group">
@@ -1631,7 +1642,8 @@ class UIServer {
         // Constants for wire API modes (injected from backend)
         const WIRE_API_MODES = {
             CHAT: '${WIRE_API_MODES.CHAT}',
-            RESPONSES: '${WIRE_API_MODES.RESPONSES}'
+            RESPONSES: '${WIRE_API_MODES.RESPONSES}',
+            ENV: '${WIRE_API_MODES.ENV}'
         };
         const DEFAULT_WIRE_API = '${DEFAULT_WIRE_API}';
 
@@ -2046,6 +2058,18 @@ class UIServer {
                             <div class="info-label">Wire API</div>
                             <div class="info-value">\${data.wireApi || (DEFAULT_WIRE_API + ' (default)')}</div>
                         </div>
+                        \${data.wireApi === 'env' && data.envKey ? \`
+                        <div class="account-info">
+                            <div class="info-label">环境变量名称</div>
+                            <div class="info-value">\${data.envKey}</div>
+                        </div>
+                        <div class="account-info" style="background: #fff3cd; padding: 8px; border-radius: 4px; margin-top: 5px;">
+                            <div class="info-label" style="color: #856404;">使用提示</div>
+                            <div class="info-value" style="color: #856404; font-family: monospace; font-size: 12px;">
+                                export \${data.envKey}="your-api-key"
+                            </div>
+                        </div>
+                        \` : ''}
                         \` : ''}
                         \${data.type === 'CCR' && data.ccrConfig ? \`
                         <div class="account-info">
@@ -2072,6 +2096,15 @@ class UIServer {
             return key.substring(0, 4) + '****' + key.substring(key.length - 4);
         }
 
+        function toggleEnvKeyField() {
+            const wireApi = document.getElementById('wireApi').value;
+            const envKeyGroup = document.getElementById('envKeyGroup');
+
+            if (envKeyGroup) {
+                envKeyGroup.style.display = wireApi === 'env' ? 'block' : 'none';
+            }
+        }
+
         function toggleModelFields() {
             const accountType = document.getElementById('accountType').value;
             const simpleModelGroup = document.getElementById('simpleModelGroup');
@@ -2082,6 +2115,16 @@ class UIServer {
             // Show/hide wire_api field for Codex accounts
             if (wireApiGroup) {
                 wireApiGroup.style.display = accountType === 'Codex' ? 'block' : 'none';
+                // Also toggle envKey field if Codex is selected
+                if (accountType === 'Codex') {
+                    toggleEnvKeyField();
+                } else {
+                    // Hide envKey field for non-Codex accounts
+                    const envKeyGroup = document.getElementById('envKeyGroup');
+                    if (envKeyGroup) {
+                        envKeyGroup.style.display = 'none';
+                    }
+                }
             }
 
             if (accountType === 'Codex' || accountType === 'Droids') {
@@ -2153,6 +2196,12 @@ class UIServer {
                 // Load wire_api for Codex accounts
                 if (account.type === 'Codex') {
                     document.getElementById('wireApi').value = account.wireApi || DEFAULT_WIRE_API;
+                    // Load envKey for env mode
+                    if (account.envKey) {
+                        document.getElementById('envKey').value = account.envKey;
+                    }
+                    // Show/hide envKey field based on wireApi mode
+                    toggleEnvKeyField();
                 }
 
                 // Clear model groups and CCR config
@@ -2423,6 +2472,13 @@ class UIServer {
                     const wireApi = document.getElementById('wireApi').value;
                     if (wireApi) {
                         accountData.wireApi = wireApi;
+                        // Add envKey for env mode
+                        if (wireApi === 'env') {
+                            const envKey = document.getElementById('envKey').value.trim();
+                            if (envKey) {
+                                accountData.envKey = envKey;
+                            }
+                        }
                     }
                 }
             } else if (accountType === 'CCR') {
