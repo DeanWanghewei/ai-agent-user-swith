@@ -451,6 +451,8 @@ class UIServer {
           return;
         }
 
+        // Include name in serverData to ensure consistency
+        serverData.name = name;
         this.config.addMcpServer(name, serverData);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, message: 'MCP server added successfully' }));
@@ -479,6 +481,8 @@ class UIServer {
           return;
         }
 
+        // Include name in serverData to ensure consistency
+        serverData.name = name;
         this.config.updateMcpServer(name, serverData);
 
         // Sync if server is enabled in current project
@@ -957,10 +961,118 @@ class UIServer {
             cursor: pointer;
         }
 
+        .view-toggle {
+            display: flex;
+            gap: 5px;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 5px;
+            padding: 3px;
+        }
+
+        .view-toggle-btn {
+            padding: 8px 15px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .view-toggle-btn:hover {
+            background: var(--border-color);
+        }
+
+        .view-toggle-btn.active {
+            background: #4CAF50;
+            color: white;
+        }
+
         .accounts-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 20px;
+        }
+
+        .accounts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .account-list-item {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 15px 20px;
+            box-shadow: 0 2px 4px var(--card-shadow);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-left: 4px solid transparent;
+        }
+
+        .account-list-item:hover {
+            box-shadow: 0 4px 8px var(--card-shadow-hover);
+            transform: translateX(5px);
+        }
+
+        .account-list-item.type-claude {
+            border-left-color: #1976d2;
+        }
+
+        .account-list-item.type-codex {
+            border-left-color: #7b1fa2;
+        }
+
+        .account-list-item.type-droids {
+            border-left-color: #388e3c;
+        }
+
+        .account-list-item.type-ccr {
+            border-left-color: #ff9800;
+        }
+
+        .account-list-item.type-other {
+            border-left-color: #f57c00;
+        }
+
+        .account-list-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .account-list-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .account-list-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .account-list-details {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .account-list-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .account-card {
@@ -1422,6 +1534,14 @@ class UIServer {
                         <option value="Other" data-i18n="other">其他</option>
                     </select>
                 </div>
+                <div class="view-toggle">
+                    <button class="view-toggle-btn active" id="gridViewBtn" onclick="switchView('grid')" title="块视图">
+                        <span>⊞</span>
+                    </button>
+                    <button class="view-toggle-btn" id="listViewBtn" onclick="switchView('list')" title="列表视图">
+                        <span>☰</span>
+                    </button>
+                </div>
                 <button class="btn btn-primary" onclick="showAddModal()" data-i18n="addAccount">+ 添加账号</button>
                 <button class="btn btn-secondary" onclick="exportAccounts()" data-i18n="exportAll">导出全部</button>
                 <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()" data-i18n="import">导入</button>
@@ -1450,6 +1570,14 @@ class UIServer {
                         <option value="sse">sse</option>
                         <option value="http">http</option>
                     </select>
+                </div>
+                <div class="view-toggle">
+                    <button class="view-toggle-btn active" id="mcpGridViewBtn" onclick="switchMcpView('grid')" title="块视图">
+                        <span>⊞</span>
+                    </button>
+                    <button class="view-toggle-btn" id="mcpListViewBtn" onclick="switchMcpView('list')" title="列表视图">
+                        <span>☰</span>
+                    </button>
                 </div>
                 <button class="btn btn-primary" onclick="showAddMcpModal()" data-i18n="addMcpServer">+ 添加 MCP 服务器</button>
                 <button class="btn btn-secondary" onclick="syncMcpConfig()" data-i18n="syncMcp">同步配置</button>
@@ -1843,6 +1971,8 @@ class UIServer {
 
         let currentLang = localStorage.getItem('ais-lang') || 'zh';
         let currentTheme = localStorage.getItem('ais-theme') || 'auto';
+        let currentView = localStorage.getItem('ais-view') || 'grid';
+        let currentMcpView = localStorage.getItem('ais-mcp-view') || 'grid';
         let accounts = {};
         let editingAccount = null;
         let envVarCount = 0;
@@ -1943,9 +2073,74 @@ class UIServer {
             updateLanguage();
         }
 
+        function switchView(view) {
+            currentView = view;
+            localStorage.setItem('ais-view', view);
+
+            // Update button states
+            document.getElementById('gridViewBtn').classList.toggle('active', view === 'grid');
+            document.getElementById('listViewBtn').classList.toggle('active', view === 'list');
+
+            // Update container class
+            const container = document.getElementById('accountsContainer');
+            if (view === 'list') {
+                container.classList.remove('accounts-grid');
+                container.classList.add('accounts-list');
+            } else {
+                container.classList.remove('accounts-list');
+                container.classList.add('accounts-grid');
+            }
+
+            renderAccounts();
+        }
+
+        function switchMcpView(view) {
+            currentMcpView = view;
+            localStorage.setItem('ais-mcp-view', view);
+
+            // Update button states
+            document.getElementById('mcpGridViewBtn').classList.toggle('active', view === 'grid');
+            document.getElementById('mcpListViewBtn').classList.toggle('active', view === 'list');
+
+            // Update container class
+            const container = document.getElementById('mcpServersContainer');
+            if (view === 'list') {
+                container.classList.remove('accounts-grid');
+                container.classList.add('accounts-list');
+            } else {
+                container.classList.remove('accounts-list');
+                container.classList.add('accounts-grid');
+            }
+
+            renderMcpServers();
+        }
+
         // Initialize
         initTheme();
         updateLanguage();
+
+        // Initialize view preferences
+        function initViews() {
+            // Initialize accounts view
+            const accountsContainer = document.getElementById('accountsContainer');
+            if (currentView === 'list') {
+                accountsContainer.classList.remove('accounts-grid');
+                accountsContainer.classList.add('accounts-list');
+                document.getElementById('gridViewBtn').classList.remove('active');
+                document.getElementById('listViewBtn').classList.add('active');
+            }
+
+            // Initialize MCP view
+            const mcpContainer = document.getElementById('mcpServersContainer');
+            if (currentMcpView === 'list') {
+                mcpContainer.classList.remove('accounts-grid');
+                mcpContainer.classList.add('accounts-list');
+                document.getElementById('mcpGridViewBtn').classList.remove('active');
+                document.getElementById('mcpListViewBtn').classList.add('active');
+            }
+        }
+
+        initViews();
 
         async function loadAccounts() {
             try {
@@ -1998,7 +2193,36 @@ class UIServer {
             }
 
             emptyState.classList.add('hidden');
-            container.innerHTML = filteredAccounts.map(([name, data]) => {
+
+            if (currentView === 'list') {
+                // List view
+                container.innerHTML = filteredAccounts.map(([name, data]) => {
+                    const typeClass = data.type ? \`type-\${data.type.toLowerCase()}\` : 'type-other';
+                    return \`
+                    <div class="account-list-item \${typeClass}">
+                        <div class="account-list-left">
+                            <div class="account-list-info">
+                                <div class="account-list-name">\${name}</div>
+                                <div class="account-list-details">
+                                    <span class="account-type \${typeClass}">\${data.type || 'N/A'}</span>
+                                    <span>\${t('apiKeyLabel')}: \${maskApiKey(data.apiKey)}</span>
+                                    \${data.email ? \`<span>\${data.email}</span>\` : ''}
+                                    \${data.apiUrl ? \`<span>\${data.apiUrl}</span>\` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="account-list-right">
+                            <span class="account-status \${data.lastCheck ? data.lastCheck.status : 'unknown'}" id="status_\${name}" title="\${data.lastCheck ? (data.lastCheck.status === 'available' ? '可用' : data.lastCheck.status === 'unstable' ? '不稳定' : '不可用') : '未检查'}"></span>
+                            <button class="btn btn-secondary btn-small" onclick="checkAccount('\${name}')" id="checkBtn_\${name}">状态检查</button>
+                            <button class="btn btn-secondary btn-small" onclick="editAccount('\${name}')">\${t('edit')}</button>
+                            <button class="btn btn-danger btn-small" onclick="deleteAccount('\${name}')">\${t('delete')}</button>
+                        </div>
+                    </div>
+                \`;
+                }).join('');
+            } else {
+                // Grid view (original)
+                container.innerHTML = filteredAccounts.map(([name, data]) => {
                 const typeClass = data.type ? \`type-\${data.type.toLowerCase()}\` : 'type-other';
                 return \`
                 <div class="account-card \${typeClass}">
@@ -2088,7 +2312,8 @@ class UIServer {
                     </div>
                 </div>
             \`;
-            }).join('');
+                }).join('');
+            }
         }
 
         function maskApiKey(key) {
@@ -2739,7 +2964,43 @@ class UIServer {
             }
 
             emptyState.classList.add('hidden');
-            container.innerHTML = filteredServers.map(([name, data]) => {
+
+            if (currentMcpView === 'list') {
+                // List view
+                container.innerHTML = filteredServers.map(([name, data]) => {
+                    const isEnabled = enabledMcpServers.includes(name);
+                    const statusClass = isEnabled ? 'available' : 'unknown';
+                    const statusText = isEnabled ? t('mcpEnabled') : t('mcpDisabled');
+
+                    return \`
+                    <div class="account-list-item">
+                        <div class="account-list-left">
+                            <div class="account-list-info">
+                                <div class="account-list-name">\${name}</div>
+                                <div class="account-list-details">
+                                    <span class="account-type type-other">\${data.type}</span>
+                                    \${data.description ? \`<span>\${data.description}</span>\` : ''}
+                                    \${data.command ? \`<span>\${data.command}</span>\` : ''}
+                                    \${data.url ? \`<span>\${data.url}</span>\` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="account-list-right">
+                            <span class="account-status \${statusClass}" title="\${statusText}"></span>
+                            <button class="btn btn-secondary btn-small" onclick="editMcpServer('\${name}')">\${t('edit')}</button>
+                            <button class="btn btn-secondary btn-small" onclick="testMcpServer('\${name}')">\${t('testMcp')}</button>
+                            \${isEnabled ?
+                                \`<button class="btn btn-secondary btn-small" onclick="disableMcpServer('\${name}')">\${t('disableMcp')}</button>\` :
+                                \`<button class="btn btn-primary btn-small" onclick="enableMcpServer('\${name}')">\${t('enableMcp')}</button>\`
+                            }
+                            <button class="btn btn-danger btn-small" onclick="deleteMcpServer('\${name}')">\${t('delete')}</button>
+                        </div>
+                    </div>
+                \`;
+                }).join('');
+            } else {
+                // Grid view (original)
+                container.innerHTML = filteredServers.map(([name, data]) => {
                 const isEnabled = enabledMcpServers.includes(name);
                 const statusClass = isEnabled ? 'available' : 'unknown';
                 const statusText = isEnabled ? t('mcpEnabled') : t('mcpDisabled');
@@ -2786,7 +3047,8 @@ class UIServer {
                     </div>
                 </div>
             \`;
-            }).join('');
+                }).join('');
+            }
         }
 
         function showAddMcpModal() {
