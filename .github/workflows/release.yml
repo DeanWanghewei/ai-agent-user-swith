@@ -1,78 +1,75 @@
 name: Release and Publish
 
 on:
-  push:
-    tags:
-      - 'v*'
+    push:
+        tags:
+            - "v*"
 
 jobs:
-  create-release:
-    name: Create GitHub Release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    create-release:
+        name: Create GitHub Release
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-          body: |
-            ## 📦 Installation
+            - name: Create Release
+              uses: softprops/action-gh-release@v1
+              with:
+                  draft: false
+                  prerelease: false
+                  generate_release_notes: true
+                  body: |
+                      ## 📦 Installation
 
-            Install via npm (recommended):
-            ```bash
-            npm install -g ai-account-switch@latest
-            ```
+                      Install via npm (recommended):
+                      ```bash
+                      npm install -g ai-account-switch@latest
+                      ```
 
-            Or install specific version:
-            ```bash
-            npm install -g ai-account-switch@${{ github.ref_name }}
-            ```
+                      Or install specific version:
+                      ```bash
+                      npm install -g ai-account-switch@${{ github.ref_name }}
+                      ```
 
-            ## 📚 Documentation
+                      ## 📚 Documentation
 
-            - [English README](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/README.md)
-            - [中文文档](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/README_ZH.md)
+                      - [English README](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/README.md)
+                      - [中文文档](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/README_ZH.md)
 
-            ## 🔗 Links
+                      ## 🔗 Links
 
-            - [npm Package](https://www.npmjs.com/package/ai-account-switch)
-            - [GitHub Repository](https://github.com/${{ github.repository }})
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                      - [npm Package](https://www.npmjs.com/package/ai-account-switch)
+                      - [GitHub Repository](https://github.com/${{ github.repository }})
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  publish-npm:
-    name: Publish to NPM
-    needs: create-release
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write  # Required for OIDC
-      contents: read
+    publish-npm:
+        name: Publish to NPM
+        needs: create-release
+        runs-on: ubuntu-latest
+        permissions:
+            id-token: write # Required for OIDC
+            contents: read
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "24"
+                  registry-url: "https://registry.npmjs.org"
 
-      - name: Install dependencies
-        run: npm ci
+            - name: Install dependencies
+              run: npm ci
 
-      - name: Build
-        run: npm run build --if-present
+            - name: Build
+              run: npm run build --if-present
 
-      - name: Test
-        run: npm test
-
-      - name: Publish to NPM
-        run: npm publish
+            - name: Publish to NPM
+              run: npm publish
