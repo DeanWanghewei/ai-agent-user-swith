@@ -10,6 +10,8 @@ const config = new ConfigManager();
  */
 async function addMcpServer(name) {
   try {
+    const { MCP_SCOPES, DEFAULT_MCP_SCOPE } = require('../config');
+
     if (!name) {
       const { serverName } = await inquirer.prompt([{
         type: 'input',
@@ -79,8 +81,22 @@ async function addMcpServer(name) {
     const { description } = await inquirer.prompt([{ type: 'input', name: 'description', message: 'Enter description:', default: '' }]);
     serverData.description = description;
 
+    // Ask for default scope
+    const { scope } = await inquirer.prompt([{
+      type: 'list',
+      name: 'scope',
+      message: 'Select default scope (默认作用范围):',
+      choices: [
+        { name: 'local - Only current project (仅当前项目)', value: MCP_SCOPES.LOCAL },
+        { name: 'project - Share with project members (与项目成员共享)', value: MCP_SCOPES.PROJECT },
+        { name: 'user - All projects for current user (当前用户所有项目)', value: MCP_SCOPES.USER }
+      ],
+      default: DEFAULT_MCP_SCOPE
+    }]);
+    serverData.scope = scope;
+
     config.addMcpServer(name, serverData);
-    console.log(chalk.green(`✓ MCP server '${name}' added successfully!`));
+    console.log(chalk.green(`✓ MCP server '${name}' added successfully with scope: ${scope}!`));
 
     // Auto-test the server
     console.log(chalk.cyan('\nTesting server availability...'));
@@ -101,7 +117,7 @@ async function addMcpServer(name) {
  */
 async function listMcpServers() {
   try {
-    const servers = config.getAllMcpServers();
+    const servers = config.getAllAvailableMcpServers();
     const projectServers = config.getEnabledMcpServers();
 
     if (Object.keys(servers).length === 0) {
@@ -110,12 +126,16 @@ async function listMcpServers() {
     }
 
     console.log(chalk.bold.cyan('\n📋 Available MCP servers:\n'));
-    console.log('  Name         Type    Active   Description');
-    console.log('  ─────────────────────────────────────────────────────────────');
+    console.log('  Name         Type    Active   Scope      Description');
+    console.log('  ───────────────────────────────────────────────────────────────────────');
 
-    Object.values(servers).forEach(server => {
-      const isActive = projectServers.includes(server.name) ? chalk.green('✓') : ' ';
-      console.log(`  ${server.name.padEnd(12)} ${server.type.padEnd(7)} ${isActive}        ${server.description || ''}`);
+    Object.entries(servers).forEach(([key, server]) => {
+      const name = server.name || key;
+      const type = server.type || 'unknown';
+      const isActive = projectServers.includes(name) ? chalk.green('✓') : ' ';
+      const scope = server.scope || 'local';
+      const scopeDisplay = scope.padEnd(10);
+      console.log(`  ${name.padEnd(12)} ${type.padEnd(7)} ${isActive}        ${scopeDisplay} ${server.description || ''}`);
     });
 
     const activeCount = projectServers.length;
@@ -133,7 +153,7 @@ async function listMcpServers() {
 async function showMcpServer(name) {
   try {
     if (!name) {
-      const servers = config.getAllMcpServers();
+      const servers = config.getAllAvailableMcpServers();
       if (Object.keys(servers).length === 0) {
         console.log(chalk.yellow('No MCP servers configured'));
         return;
@@ -155,6 +175,7 @@ async function showMcpServer(name) {
 
     console.log(chalk.bold.cyan(`\n📋 MCP Server: ${name}\n`));
     console.log(chalk.bold('Type:'), server.type);
+    console.log(chalk.bold('Scope:'), server.scope || 'local');
     console.log(chalk.bold('Description:'), server.description || 'N/A');
 
     if (server.command) console.log(chalk.bold('Command:'), server.command);
@@ -322,8 +343,17 @@ async function removeMcpServer(name) {
 /**
  * Enable MCP server for current project
  */
-async function enableMcpServer(name) {
+async function enableMcpServer(name, options = {}) {
   try {
+    const { MCP_SCOPES, DEFAULT_MCP_SCOPE } = require('../config');
+    let scope = options.scope || DEFAULT_MCP_SCOPE;
+
+    // Validate scope
+    if (!Object.values(MCP_SCOPES).includes(scope)) {
+      console.log(chalk.red(`✗ Invalid scope '${scope}'. Valid scopes: local, project, user`));
+      return;
+    }
+
     if (!name) {
       const servers = config.getAllMcpServers();
       const enabled = config.getEnabledMcpServers();
@@ -341,12 +371,38 @@ async function enableMcpServer(name) {
         choices: available
       }]);
       name = serverName;
+
+      // Ask for scope if not provided
+      if (!options.scope) {
+        const { selectedScope } = await inquirer.prompt([{
+          type: 'list',
+          name: 'selectedScope',
+          message: 'Select scope (作用范围):',
+          choices: [
+            { name: 'local - Only current project (仅当前项目)', value: MCP_SCOPES.LOCAL },
+            { name: 'project - Share with project members via .mcp.json (通过 .mcp.json 与项目成员共享)', value: MCP_SCOPES.PROJECT },
+            { name: 'user - All projects for current user (当前用户所有项目)', value: MCP_SCOPES.USER }
+          ],
+          default: DEFAULT_MCP_SCOPE
+        }]);
+        scope = selectedScope;
+      }
     }
 
-    if (config.enableProjectMcpServer(name)) {
+    if (config.enableProjectMcpServer(name, scope)) {
       config.syncMcpConfig();
-      console.log(chalk.green(`✓ MCP server '${name}' activated for current project`));
+      console.log(chalk.green(`✓ MCP server '${name}' activated for current project with scope: ${scope}`));
       console.log(chalk.green('✓ Claude configuration updated'));
+
+      // Show scope-specific information
+      if (scope === MCP_SCOPES.LOCAL) {
+        console.log(chalk.cyan('  Scope: local - Only available in this project'));
+      } else if (scope === MCP_SCOPES.PROJECT) {
+        console.log(chalk.cyan('  Scope: project - Configuration stored in project, shared with team members'));
+        console.log(chalk.gray('  Note: Make sure to commit .ais-project-config to share with your team'));
+      } else if (scope === MCP_SCOPES.USER) {
+        console.log(chalk.cyan('  Scope: user - Available to all your projects'));
+      }
     } else {
       console.log(chalk.red(`✗ MCP server '${name}' not found`));
     }
@@ -408,7 +464,9 @@ async function showEnabledMcpServers() {
     enabled.forEach(name => {
       const server = servers[name];
       if (server) {
-        console.log(`  ${server.name.padEnd(12)} ${server.type.padEnd(7)} ${server.description || ''}`);
+        const serverName = server.name || name;
+        const type = server.type || 'unknown';
+        console.log(`  ${String(serverName).padEnd(12)} ${String(type).padEnd(7)} ${server.description || ''}`);
       }
     });
 

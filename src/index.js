@@ -27,7 +27,15 @@ const {
   disableMcpServer,
   showEnabledMcpServers,
   syncMcpConfig,
-  testMcpServer
+  testMcpServer,
+  listEnv,
+  addEnv,
+  setEnv,
+  removeEnv,
+  unsetEnv,
+  showEnv,
+  clearEnv,
+  editEnv
 } = require('./commands');
 
 // Package info
@@ -167,6 +175,7 @@ mcpCommand
 mcpCommand
   .command('enable [name]')
   .description('Activate MCP server for current project (为当前项目激活 MCP 服务器)')
+  .option('-s, --scope <scope>', 'Scope: local (default), project, or user (作用范围: local(默认), project, user)')
   .action(enableMcpServer);
 
 mcpCommand
@@ -188,6 +197,58 @@ mcpCommand
   .command('test [name]')
   .description('Test MCP server availability (测试 MCP 服务器可用性)')
   .action(testMcpServer);
+
+// Environment variable management commands
+const envCommand = program
+  .command('env')
+  .description('Manage Claude environment variables (管理 Claude 环境变量)');
+
+envCommand
+  .command('list')
+  .alias('ls')
+  .description('List all environment variables from project and user configs (列出项目和用户配置中的所有环境变量)')
+  .action(listEnv);
+
+envCommand
+  .command('add')
+  .description('Add or update an environment variable interactively (交互式添加或更新环境变量)')
+  .action(addEnv);
+
+envCommand
+  .command('set <key> <value>')
+  .description('Set an environment variable (non-interactive) (设置环境变量,非交互式)')
+  .option('-l, --level <level>', 'Configuration level: project or user (default: user) (配置级别: project 或 user,默认: user)')
+  .action(setEnv);
+
+envCommand
+  .command('remove')
+  .alias('rm')
+  .description('Remove an environment variable interactively (交互式删除环境变量)')
+  .action(removeEnv);
+
+envCommand
+  .command('unset <key>')
+  .description('Remove an environment variable by key (non-interactive) (通过键名删除环境变量,非交互式)')
+  .option('-l, --level <level>', 'Configuration level: project or user (default: user) (配置级别: project 或 user,默认: user)')
+  .action(unsetEnv);
+
+envCommand
+  .command('show <key>')
+  .description('Show an environment variable value (显示环境变量值)')
+  .option('-l, --level <level>', 'Configuration level: project or user (if not specified, searches both) (配置级别: project 或 user,未指定则搜索两者)')
+  .action(showEnv);
+
+envCommand
+  .command('clear')
+  .description('Clear all environment variables at a level (清空某个级别的所有环境变量)')
+  .option('-l, --level <level>', 'Configuration level: project or user (default: user) (配置级别: project 或 user,默认: user)')
+  .action(clearEnv);
+
+envCommand
+  .command('edit')
+  .description('Edit environment variables interactively (交互式编辑环境变量)')
+  .option('-l, --level <level>', 'Configuration level: project or user (default: user) (配置级别: project 或 user,默认: user)')
+  .action(editEnv);
 
 // Help command
 program
@@ -211,6 +272,7 @@ program
     console.log('  ui                     Start web-based account manager UI (启动基于 Web 的账号管理界面)');
     console.log('  model                  Manage model groups (管理模型组)');
     console.log('  mcp                    Manage MCP servers (管理 MCP 服务器)');
+    console.log('  env                    Manage Claude environment variables (管理 Claude 环境变量)');
     console.log('  help                   Display this help message (显示此帮助信息)');
     console.log('  version                Show version number (显示版本号)\n');
 

@@ -19,6 +19,15 @@ const ACCOUNT_TYPES = {
   DROIDS: 'Droids'
 };
 
+// Constants for MCP server scopes
+const MCP_SCOPES = {
+  LOCAL: 'local',      // Only available in current project
+  PROJECT: 'project',  // Shared with project members via .mcp.json
+  USER: 'user'         // Available to all projects for current user (global)
+};
+
+const DEFAULT_MCP_SCOPE = MCP_SCOPES.LOCAL;
+
 /**
  * Cross-platform configuration manager
  * Stores global accounts in user home directory
@@ -983,6 +992,12 @@ class ConfigManager {
   addMcpServer(name, serverData) {
     const config = this.readGlobalConfig();
     if (!config.mcpServers) config.mcpServers = {};
+
+    // Set default scope if not specified
+    if (!serverData.scope) {
+      serverData.scope = DEFAULT_MCP_SCOPE;
+    }
+
     config.mcpServers[name] = {
       ...serverData,
       createdAt: config.mcpServers[name]?.createdAt || new Date().toISOString(),
@@ -1103,9 +1118,11 @@ class ConfigManager {
   }
 
   /**
-   * Enable MCP server for current project
+   * Enable MCP server for current project with scope
+   * @param {string} serverName - Name of the MCP server
+   * @param {string} scope - Scope: 'local', 'project', or 'user'
    */
-  enableProjectMcpServer(serverName) {
+  enableProjectMcpServer(serverName, scope = DEFAULT_MCP_SCOPE) {
     const server = this.getMcpServer(serverName);
     if (!server) return false;
 
@@ -1123,11 +1140,42 @@ class ConfigManager {
       const data = fs.readFileSync(projectConfigFile, 'utf8');
       const projectConfig = JSON.parse(data);
 
-      if (!projectConfig.enabledMcpServers) projectConfig.enabledMcpServers = [];
-      if (!projectConfig.enabledMcpServers.includes(serverName)) {
-        projectConfig.enabledMcpServers.push(serverName);
-        fs.writeFileSync(projectConfigFile, JSON.stringify(projectConfig, null, 2), 'utf8');
+      // Update server scope in global config
+      const globalConfig = this.readGlobalConfig();
+      if (globalConfig.mcpServers[serverName]) {
+        globalConfig.mcpServers[serverName].scope = scope;
+        this.saveGlobalConfig(globalConfig);
       }
+
+      // Handle different scopes
+      if (scope === MCP_SCOPES.LOCAL) {
+        // Local scope: only enable for current project
+        if (!projectConfig.enabledMcpServers) projectConfig.enabledMcpServers = [];
+        if (!projectConfig.enabledMcpServers.includes(serverName)) {
+          projectConfig.enabledMcpServers.push(serverName);
+        }
+      } else if (scope === MCP_SCOPES.PROJECT) {
+        // Project scope: store in project config for sharing
+        if (!projectConfig.projectMcpServers) projectConfig.projectMcpServers = {};
+        projectConfig.projectMcpServers[serverName] = {
+          ...server,
+          scope: MCP_SCOPES.PROJECT
+        };
+
+        // Also add to enabled list
+        if (!projectConfig.enabledMcpServers) projectConfig.enabledMcpServers = [];
+        if (!projectConfig.enabledMcpServers.includes(serverName)) {
+          projectConfig.enabledMcpServers.push(serverName);
+        }
+      } else if (scope === MCP_SCOPES.USER) {
+        // User scope: mark as globally enabled
+        if (!projectConfig.enabledMcpServers) projectConfig.enabledMcpServers = [];
+        if (!projectConfig.enabledMcpServers.includes(serverName)) {
+          projectConfig.enabledMcpServers.push(serverName);
+        }
+      }
+
+      fs.writeFileSync(projectConfigFile, JSON.stringify(projectConfig, null, 2), 'utf8');
       return true;
     } catch (error) {
       throw new Error(`Failed to enable MCP server: ${error.message}`);
@@ -1168,13 +1216,58 @@ class ConfigManager {
 
   /**
    * Get enabled MCP servers for current project
+   * Includes local, project, and user-scoped servers
    */
   getEnabledMcpServers() {
-    return this.getProjectMcpServers();
+    const projectServers = this.getProjectMcpServers();
+    const globalServers = this.getAllMcpServers();
+
+    // Add user-scoped servers that are globally enabled
+    const userScopedServers = Object.keys(globalServers).filter(name =>
+      globalServers[name].scope === MCP_SCOPES.USER && !projectServers.includes(name)
+    );
+
+    return [...projectServers, ...userScopedServers];
+  }
+
+  /**
+   * Get all available MCP servers including project-scoped ones
+   */
+  getAllAvailableMcpServers() {
+    const globalServers = this.getAllMcpServers();
+    const projectRoot = this.findProjectRoot();
+
+    if (!projectRoot) {
+      return globalServers;
+    }
+
+    try {
+      const projectConfigFile = path.join(projectRoot, this.projectConfigFilename);
+      if (!fs.existsSync(projectConfigFile)) {
+        return globalServers;
+      }
+
+      const data = fs.readFileSync(projectConfigFile, 'utf8');
+      const projectConfig = JSON.parse(data);
+
+      // Merge global and project servers
+      const allServers = { ...globalServers };
+
+      if (projectConfig.projectMcpServers) {
+        Object.entries(projectConfig.projectMcpServers).forEach(([name, server]) => {
+          allServers[name] = server;
+        });
+      }
+
+      return allServers;
+    } catch (error) {
+      return globalServers;
+    }
   }
 
   /**
    * Get Claude Code user config path (cross-platform)
+   * Priority: ~/.claude/settings.json > platform-specific paths > legacy paths
    */
   getClaudeUserConfigPath() {
     const platform = process.platform;
@@ -1182,12 +1275,30 @@ class ConfigManager {
 
     if (!home) return null;
 
-    // Try common locations
-    const locations = [
-      path.join(home, '.claude.json'),
-      path.join(home, '.config', 'claude', 'config.json')
-    ];
+    // Priority order for Claude user config
+    const locations = [];
 
+    // Primary location: ~/.claude/settings.json (modern Claude Code)
+    locations.push(path.join(home, '.claude', 'settings.json'));
+
+    // Platform-specific locations
+    if (platform === 'win32') {
+      // Windows: %APPDATA%\claude\settings.json
+      const appData = process.env.APPDATA;
+      if (appData) {
+        locations.push(path.join(appData, 'claude', 'settings.json'));
+        locations.push(path.join(appData, 'claude', 'config.json'));
+      }
+    } else {
+      // macOS/Linux: ~/.config/claude/settings.json
+      locations.push(path.join(home, '.config', 'claude', 'settings.json'));
+      locations.push(path.join(home, '.config', 'claude', 'config.json'));
+    }
+
+    // Legacy fallback: ~/.claude.json
+    locations.push(path.join(home, '.claude.json'));
+
+    // Return first existing location
     for (const loc of locations) {
       if (fs.existsSync(loc)) {
         return loc;
@@ -1413,14 +1524,22 @@ class ConfigManager {
 
       // Get enabled MCP servers
       const enabledServers = this.getEnabledMcpServers();
-      const allServers = this.getAllMcpServers();
+      const allServers = this.getAllAvailableMcpServers();
 
-      if (enabledServers.length > 0) {
+      // Filter servers by scope:
+      // - Only 'project' scoped servers should be in .mcp.json (shared with team)
+      // - 'local' and 'user' scoped servers should NOT be in .mcp.json
+      const projectScopedServers = enabledServers.filter(serverName => {
+        const server = allServers[serverName];
+        return server && server.scope === MCP_SCOPES.PROJECT;
+      });
+
+      if (projectScopedServers.length > 0) {
         const mcpConfig = {
           mcpServers: {}
         };
 
-        enabledServers.forEach(serverName => {
+        projectScopedServers.forEach(serverName => {
           const server = allServers[serverName];
           if (server) {
             const serverConfig = {};
@@ -1455,7 +1574,7 @@ class ConfigManager {
 
         fs.writeFileSync(mcpConfigFile, JSON.stringify(mcpConfig, null, 2), 'utf8');
       } else {
-        // Remove .mcp.json if no servers are enabled
+        // Remove .mcp.json if no project-scoped servers are enabled
         if (fs.existsSync(mcpConfigFile)) {
           fs.unlinkSync(mcpConfigFile);
         }
@@ -1470,3 +1589,5 @@ module.exports = ConfigManager;
 module.exports.WIRE_API_MODES = WIRE_API_MODES;
 module.exports.DEFAULT_WIRE_API = DEFAULT_WIRE_API;
 module.exports.ACCOUNT_TYPES = ACCOUNT_TYPES;
+module.exports.MCP_SCOPES = MCP_SCOPES;
+module.exports.DEFAULT_MCP_SCOPE = DEFAULT_MCP_SCOPE;

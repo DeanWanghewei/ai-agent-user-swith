@@ -120,6 +120,14 @@ class UIServer {
       this.handleUpdateMcpServer(req, res, pathname);
     } else if (pathname.startsWith('/api/mcp-servers/') && req.method === 'DELETE') {
       this.handleDeleteMcpServer(req, res, pathname);
+    } else if (pathname === '/api/env' && req.method === 'GET') {
+      this.handleGetEnv(req, res);
+    } else if (pathname === '/api/env' && req.method === 'POST') {
+      this.handleSetEnv(req, res);
+    } else if (pathname.startsWith('/api/env/') && req.method === 'DELETE') {
+      this.handleDeleteEnv(req, res, pathname);
+    } else if (pathname === '/api/env/clear' && req.method === 'POST') {
+      this.handleClearEnv(req, res);
     } else {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Not found' }));
@@ -709,6 +717,289 @@ class UIServer {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: error.message }));
     }
+  }
+
+  // Helper functions for env handlers
+  getClaudeUserConfigPath() {
+    // Use ConfigManager's method for consistency
+    const claudeConfigPath = this.config.getClaudeUserConfigPath();
+
+    // If config exists, return it; otherwise, use default path
+    if (claudeConfigPath) {
+      return claudeConfigPath;
+    }
+
+    // Fallback to default location
+    const path = require('path');
+    const home = process.env.HOME || process.env.USERPROFILE;
+    if (!home) return null;
+
+    return path.join(home, '.claude', 'settings.json');
+  }
+
+  readClaudeProjectConfig(projectRoot) {
+    const path = require('path');
+    const fs = require('fs');
+    const claudeConfigFile = path.join(projectRoot, '.claude', 'settings.local.json');
+
+    if (!fs.existsSync(claudeConfigFile)) {
+      return { env: {} };
+    }
+
+    try {
+      const data = fs.readFileSync(claudeConfigFile, 'utf8');
+      const config = JSON.parse(data);
+      // Ensure env property exists
+      if (!config.env) {
+        config.env = {};
+      }
+      return config;
+    } catch (error) {
+      return { env: {} };
+    }
+  }
+
+  writeClaudeProjectConfig(claudeConfig, projectRoot) {
+    const path = require('path');
+    const fs = require('fs');
+    const claudeDir = path.join(projectRoot, '.claude');
+    const claudeConfigFile = path.join(claudeDir, 'settings.local.json');
+
+    if (!fs.existsSync(claudeDir)) {
+      fs.mkdirSync(claudeDir, { recursive: true });
+    }
+
+    // Read existing config and merge with new env
+    let existingConfig = {};
+    if (fs.existsSync(claudeConfigFile)) {
+      try {
+        const data = fs.readFileSync(claudeConfigFile, 'utf8');
+        existingConfig = JSON.parse(data);
+      } catch (error) {
+        // If parsing fails, start fresh
+      }
+    }
+
+    // Merge env property
+    existingConfig.env = claudeConfig.env || {};
+
+    fs.writeFileSync(claudeConfigFile, JSON.stringify(existingConfig, null, 2), 'utf8');
+  }
+
+  readClaudeUserConfig() {
+    const fs = require('fs');
+    const claudeConfigPath = this.getClaudeUserConfigPath();
+
+    if (!claudeConfigPath || !fs.existsSync(claudeConfigPath)) {
+      return { env: {} };
+    }
+
+    try {
+      const data = fs.readFileSync(claudeConfigPath, 'utf8');
+      const config = JSON.parse(data);
+      // Ensure env property exists
+      if (!config.env) {
+        config.env = {};
+      }
+      return config;
+    } catch (error) {
+      return { env: {} };
+    }
+  }
+
+  writeClaudeUserConfig(claudeConfig) {
+    const fs = require('fs');
+    const path = require('path');
+    const claudeConfigPath = this.getClaudeUserConfigPath();
+
+    if (!claudeConfigPath) {
+      throw new Error('Could not determine Claude config path');
+    }
+
+    const claudeConfigDir = path.dirname(claudeConfigPath);
+    if (!fs.existsSync(claudeConfigDir)) {
+      fs.mkdirSync(claudeConfigDir, { recursive: true });
+    }
+
+    // Read existing config and merge with new env
+    let existingConfig = {};
+    if (fs.existsSync(claudeConfigPath)) {
+      try {
+        const data = fs.readFileSync(claudeConfigPath, 'utf8');
+        existingConfig = JSON.parse(data);
+      } catch (error) {
+        // If parsing fails, start fresh
+      }
+    }
+
+    // Merge env property
+    existingConfig.env = claudeConfig.env || {};
+
+    fs.writeFileSync(claudeConfigPath, JSON.stringify(existingConfig, null, 2), 'utf8');
+  }
+
+  handleGetEnv(req, res) {
+    try {
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const level = url.searchParams.get('level') || 'all';
+
+      let result = {
+        project: null,
+        user: null
+      };
+
+      const projectRoot = this.config.findProjectRoot();
+      if (projectRoot && (level === 'all' || level === 'project')) {
+        const projectConfig = this.readClaudeProjectConfig(projectRoot);
+        result.project = {
+          path: projectRoot,
+          configPath: require('path').join(projectRoot, '.claude', 'settings.local.json'),
+          env: projectConfig.env || {}
+        };
+      }
+
+      if (level === 'all' || level === 'user') {
+        const userConfig = this.readClaudeUserConfig();
+        result.user = {
+          configPath: this.getClaudeUserConfigPath(),
+          env: userConfig.env || {}
+        };
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  handleSetEnv(req, res) {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+        const { key, value, level } = data;
+
+        if (!key || value === undefined) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Key and value are required' }));
+          return;
+        }
+
+        const targetLevel = level || 'user';
+
+        if (targetLevel === 'project') {
+          const projectRoot = this.config.findProjectRoot();
+          if (!projectRoot) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Not in a project directory' }));
+            return;
+          }
+          const projectConfig = this.readClaudeProjectConfig(projectRoot);
+          projectConfig.env = projectConfig.env || {};
+          projectConfig.env[key] = value;
+          this.writeClaudeProjectConfig(projectConfig, projectRoot);
+        } else {
+          const userConfig = this.readClaudeUserConfig();
+          userConfig.env = userConfig.env || {};
+          userConfig.env[key] = value;
+          this.writeClaudeUserConfig(userConfig);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, message: 'Environment variable set successfully' }));
+      } catch (error) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: error.message }));
+      }
+    });
+  }
+
+  handleDeleteEnv(req, res, pathname) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const level = url.searchParams.get('level') || 'user';
+    const key = decodeURIComponent(pathname.split('/api/env/')[1]);
+
+    try {
+      if (!key) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Key is required' }));
+        return;
+      }
+
+      if (level === 'project') {
+        const projectRoot = this.config.findProjectRoot();
+        if (!projectRoot) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Not in a project directory' }));
+          return;
+        }
+        const projectConfig = this.readClaudeProjectConfig(projectRoot);
+        if (!projectConfig.env || !projectConfig.env[key]) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Environment variable not found' }));
+          return;
+        }
+        delete projectConfig.env[key];
+        this.writeClaudeProjectConfig(projectConfig, projectRoot);
+      } else {
+        const userConfig = this.readClaudeUserConfig();
+        if (!userConfig.env || !userConfig.env[key]) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Environment variable not found' }));
+          return;
+        }
+        delete userConfig.env[key];
+        this.writeClaudeUserConfig(userConfig);
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'Environment variable deleted successfully' }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  handleClearEnv(req, res) {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+
+    req.on('end', () => {
+      try {
+        const data = body ? JSON.parse(body) : {};
+        const level = data.level || 'user';
+
+        if (level === 'project') {
+          const projectRoot = this.config.findProjectRoot();
+          if (!projectRoot) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Not in a project directory' }));
+            return;
+          }
+          const projectConfig = this.readClaudeProjectConfig(projectRoot);
+          projectConfig.env = {};
+          this.writeClaudeProjectConfig(projectConfig, projectRoot);
+        } else {
+          const userConfig = this.readClaudeUserConfig();
+          userConfig.env = {};
+          this.writeClaudeUserConfig(userConfig);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, message: 'Environment variables cleared successfully' }));
+      } catch (error) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: error.message }));
+      }
+    });
   }
 
   getHTMLContent() {
@@ -1516,6 +1807,7 @@ class UIServer {
         <div class="tab-navigation">
             <button class="tab-btn active" id="accountsTabBtn" data-i18n="accountsTab">账号管理</button>
             <button class="tab-btn" id="mcpTabBtn" data-i18n="mcpTab">MCP 服务器</button>
+            <button class="tab-btn" id="envTabBtn" data-i18n="envTab">环境变量</button>
         </div>
 
         <!-- Accounts Tab -->
@@ -1591,6 +1883,28 @@ class UIServer {
             </div>
         </div>
         <!-- End MCP Tab -->
+
+        <!-- Env Tab -->
+        <div id="envTab" class="tab-content">
+            <div class="controls">
+                <div class="filter-box">
+                    <select id="envLevelFilter" onchange="renderEnvVars()">
+                        <option value="all" data-i18n="allLevels">所有级别</option>
+                        <option value="project" data-i18n="projectLevel">项目级别</option>
+                        <option value="user" data-i18n="userLevel">用户级别</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="showAddEnvModal()" data-i18n="addEnvVar">+ 添加环境变量</button>
+            </div>
+
+            <div id="envContainer" class="env-container"></div>
+            <div id="envEmptyState" class="empty-state hidden">
+                <h2 data-i18n="noEnvVars">还没有环境变量</h2>
+                <p data-i18n="getEnvStarted">开始添加你的第一个环境变量吧</p>
+                <button class="btn btn-primary" onclick="showAddEnvModal()" data-i18n="addEnvVar">+ 添加环境变量</button>
+            </div>
+        </div>
+        <!-- End Env Tab -->
     </div>
 
     <!-- Add/Edit Account Modal -->
@@ -1766,6 +2080,182 @@ class UIServer {
         </div>
     </div>
 
+    <!-- Add/Edit Env Var Modal -->
+    <div id="envModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="envModalTitle" data-i18n="addEnvVarTitle">添加环境变量</div>
+            <form id="envForm" onsubmit="saveEnvVar(event)">
+                <div class="form-group">
+                    <label for="envLevel" data-i18n="envLevel">级别 *</label>
+                    <select id="envLevel" required onchange="updateEnvLevelOptions()">
+                        <option value="user" data-i18n="userLevel">用户级别 (所有项目)</option>
+                        <option value="project" data-i18n="projectLevel">项目级别 (仅当前项目)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="envKey" data-i18n="envKey">变量名 *</label>
+                    <input type="text" id="envKey" required data-i18n-placeholder="envKeyPlaceholder" placeholder="例如: MY_CUSTOM_VAR" pattern="^[A-Z_][A-Z0-9_]*$">
+                </div>
+                <div class="form-group">
+                    <label for="envValue" data-i18n="envValue">变量值 *</label>
+                    <input type="text" id="envValue" required data-i18n-placeholder="envValuePlaceholder" placeholder="变量值">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" data-i18n="save">保存</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeEnvModal()" data-i18n="cancel">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <style>
+        .env-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            padding: 10px 0;
+        }
+
+        .env-section {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px var(--card-shadow);
+            transition: box-shadow 0.3s ease;
+        }
+
+        .env-section:hover {
+            box-shadow: 0 4px 16px var(--card-shadow-hover);
+        }
+
+        .env-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .env-section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .env-section-path {
+            font-size: 0.85rem;
+            color: var(--text-tertiary);
+            margin-top: 5px;
+        }
+
+        .env-section-body {
+            margin-top: 15px;
+        }
+
+        .env-section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .env-section-title h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .env-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        .env-badge-project {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .env-badge-user {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        [data-theme="dark"] .env-badge-project {
+            background: #1565c0;
+            color: #e3f2fd;
+        }
+
+        [data-theme="dark"] .env-badge-user {
+            background: #6a1b9a;
+            color: #f3e5f5;
+        }
+
+        .env-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .env-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .env-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: var(--input-bg);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .env-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .env-item-key {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .env-item-value {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 3px;
+            word-break: break-all;
+        }
+
+        .env-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 0.85rem;
+        }
+
+        .empty-env {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-tertiary);
+        }
+    </style>
+
     <script>
         // Constants for wire API modes (injected from backend)
         const WIRE_API_MODES = {
@@ -1870,7 +2360,32 @@ class UIServer {
                 mcpSyncFailed: 'MCP 配置同步失败',
                 confirmDeleteMcp: '确定要删除 MCP 服务器',
                 noResults: '没有找到匹配的结果',
-                tryDifferentSearch: '尝试使用不同的搜索条件或筛选器'
+                tryDifferentSearch: '尝试使用不同的搜索条件或筛选器',
+                // Env related
+                envTab: '环境变量',
+                allLevels: '所有级别',
+                projectLevel: '项目级别',
+                userLevel: '用户级别',
+                addEnvVar: '+ 添加环境变量',
+                noEnvVars: '还没有环境变量',
+                getEnvStarted: '开始添加你的第一个环境变量吧',
+                addEnvVarTitle: '添加环境变量',
+                editEnvVarTitle: '编辑环境变量',
+                envLevel: '级别 *',
+                envKey: '变量名 *',
+                envKeyPlaceholder: '例如: MY_CUSTOM_VAR',
+                envValue: '变量值 *',
+                envValuePlaceholder: '变量值',
+                envSaveSuccess: '环境变量保存成功',
+                envSaveFailed: '环境变量保存失败',
+                envDeleteSuccess: '环境变量删除成功',
+                envDeleteFailed: '环境变量删除失败',
+                confirmDeleteEnv: '确定要删除环境变量',
+                projectEnvConfig: '项目环境变量',
+                userEnvConfig: '用户环境变量',
+                // Display labels (without *)
+                envValueLabel: '变量值',
+                envLevelLabel: '级别'
             },
             en: {
                 title: 'AIS Account Manager',
@@ -1965,7 +2480,32 @@ class UIServer {
                 mcpSyncFailed: 'Failed to sync MCP configuration',
                 confirmDeleteMcp: 'Are you sure you want to delete MCP server',
                 noResults: 'No matching results found',
-                tryDifferentSearch: 'Try using different search terms or filters'
+                tryDifferentSearch: 'Try using different search terms or filters',
+                // Env related
+                envTab: 'Environment Variables',
+                allLevels: 'All Levels',
+                projectLevel: 'Project Level',
+                userLevel: 'User Level',
+                addEnvVar: '+ Add Environment Variable',
+                noEnvVars: 'No environment variables yet',
+                getEnvStarted: 'Get started by adding your first environment variable',
+                addEnvVarTitle: 'Add Environment Variable',
+                editEnvVarTitle: 'Edit Environment Variable',
+                envLevel: 'Level *',
+                envKey: 'Variable Name *',
+                envKeyPlaceholder: 'e.g., MY_CUSTOM_VAR',
+                envValue: 'Variable Value *',
+                envValuePlaceholder: 'Variable value',
+                envSaveSuccess: 'Environment variable saved successfully',
+                envSaveFailed: 'Failed to save environment variable',
+                envDeleteSuccess: 'Environment variable deleted successfully',
+                envDeleteFailed: 'Failed to delete environment variable',
+                confirmDeleteEnv: 'Are you sure you want to delete environment variable',
+                projectEnvConfig: 'Project Environment Variables',
+                userEnvConfig: 'User Environment Variables',
+                // Display labels (without *)
+                envValueLabel: 'Variable Value',
+                envLevelLabel: 'Level'
             }
         };
 
@@ -2004,6 +2544,10 @@ class UIServer {
                 document.getElementById('mcpTab').classList.add('active');
                 document.getElementById('mcpTabBtn').classList.add('active');
                 loadMcpServers();
+            } else if (tabName === 'env') {
+                document.getElementById('envTab').classList.add('active');
+                document.getElementById('envTabBtn').classList.add('active');
+                loadEnvVars();
             }
         }
 
@@ -2014,6 +2558,9 @@ class UIServer {
             });
             document.getElementById('mcpTabBtn').addEventListener('click', function() {
                 switchTab('mcp');
+            });
+            document.getElementById('envTabBtn').addEventListener('click', function() {
+                switchTab('env');
             });
         });
 
@@ -2913,6 +3460,225 @@ class UIServer {
                 checkBtn.disabled = false;
                 checkBtn.textContent = '状态检查';
             }
+        }
+
+        // Environment Variables Functions
+        let envData = { project: null, user: null };
+        let editingEnvVar = null;
+        let editingEnvLevel = null;
+
+        // Mask sensitive value for display
+        function maskEnvValue(key, value) {
+            if (!key || !value) return value;
+
+            // Check if variable name contains sensitive keywords
+            const isSensitive = key.includes('KEY') || key.includes('TOKEN') || key.includes('SECRET') || key.includes('PASSWORD');
+
+            if (!isSensitive) {
+                return value;
+            }
+
+            // For sensitive values, show first 2 + fixed 6 stars + last 2
+            const strValue = String(value);
+            if (strValue.length <= 4) {
+                // If value is too short, show all stars
+                return '*'.repeat(strValue.length);
+            }
+
+            const firstTwo = strValue.substring(0, 2);
+            const lastTwo = strValue.substring(strValue.length - 2);
+
+            return firstTwo + '******' + lastTwo;
+        }
+
+        async function loadEnvVars() {
+            try {
+                const filter = document.getElementById('envLevelFilter');
+                const level = filter ? filter.value : 'all';
+                const response = await fetch(\`/api/env?level=\${level}\`);
+                envData = await response.json();
+                renderEnvVars();
+            } catch (error) {
+                showToast(t('loadFailed'), 'error');
+            }
+        }
+
+        function renderEnvVars() {
+            const container = document.getElementById('envContainer');
+            const emptyState = document.getElementById('envEmptyState');
+            const filter = document.getElementById('envLevelFilter');
+            const levelFilter = filter ? filter.value : 'all';
+
+            let allEnvVars = [];
+
+            // Collect environment variables based on filter
+            if (levelFilter === 'all' || levelFilter === 'project') {
+                if (envData.project && envData.project.env) {
+                    Object.entries(envData.project.env).forEach(([key, value]) => {
+                        allEnvVars.push({
+                            key,
+                            value,
+                            level: 'project',
+                            configPath: envData.project.configPath
+                        });
+                    });
+                }
+            }
+
+            if (levelFilter === 'all' || levelFilter === 'user') {
+                if (envData.user && envData.user.env) {
+                    Object.entries(envData.user.env).forEach(([key, value]) => {
+                        allEnvVars.push({
+                            key,
+                            value,
+                            level: 'user',
+                            configPath: envData.user.configPath
+                        });
+                    });
+                }
+            }
+
+            // Show empty state if no variables
+            if (allEnvVars.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            // Add masked value to each env var for display
+            allEnvVars.forEach(envVar => {
+                envVar.maskedValue = maskEnvValue(envVar.key, envVar.value);
+            });
+
+            // Render environment variables
+            container.innerHTML = allEnvVars.map(envVar => \`
+                <div class="env-section">
+                    <div class="env-section-header">
+                        <div class="env-section-title">
+                            <h3 title="\${envVar.key}">\${envVar.key}</h3>
+                            <span class="env-badge \${envVar.level === 'project' ? 'env-badge-project' : 'env-badge-user'}">
+                                \${envVar.level === 'project' ? t('projectEnvConfig') : t('userEnvConfig')}
+                            </span>
+                        </div>
+                        <div class="env-actions">
+                            <button class="btn-icon" onclick="editEnvVar('\${envVar.key}', '\${envVar.level}')" title="\${t('edit')}">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                    <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                                </svg>
+                            </button>
+                            <button class="btn-icon btn-icon-danger" onclick="deleteEnvVar('\${envVar.key}', '\${envVar.level}')" title="\${t('delete')}">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                                    <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="env-section-body">
+                        <div class="info-label">\${t('envValueLabel')}</div>
+                        <div class="info-value">\${envVar.maskedValue}</div>
+                        <div class="info-label" style="margin-top: 8px;">\${t('envLevelLabel')}</div>
+                        <div class="info-value">\${envVar.level === 'project' ? t('projectEnvConfig') : t('userEnvConfig')}</div>
+                        <div class="info-label" style="margin-top: 8px;">Config</div>
+                        <div class="info-value small">\${envVar.configPath}</div>
+                    </div>
+                </div>
+            \`).join('');
+        }
+
+        function showAddEnvModal() {
+            editingEnvVar = null;
+            editingEnvLevel = null;
+            document.getElementById('envModalTitle').textContent = t('addEnvVarTitle');
+            document.getElementById('envForm').reset();
+            document.getElementById('envModal').classList.remove('hidden');
+        }
+
+        function editEnvVar(key, level) {
+            editingEnvVar = key;
+            editingEnvLevel = level;
+            document.getElementById('envModalTitle').textContent = t('editEnvVarTitle');
+
+            // Set form values
+            document.getElementById('envKey').value = key;
+            document.getElementById('envKey').disabled = true; // Can't change key when editing
+            document.getElementById('envLevel').value = level;
+            document.getElementById('envLevel').disabled = true; // Can't change level when editing
+
+            // Get the value
+            const envObj = level === 'project' ? envData.project : envData.user;
+            if (envObj && envObj.env && envObj.env[key]) {
+                document.getElementById('envValue').value = envObj.env[key];
+            }
+
+            document.getElementById('envModal').classList.remove('hidden');
+        }
+
+        async function saveEnvVar(event) {
+            event.preventDefault();
+
+            const key = document.getElementById('envKey').value.trim();
+            const value = document.getElementById('envValue').value.trim();
+            const level = document.getElementById('envLevel').value;
+
+            try {
+                const response = await fetch('/api/env', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key, value, level })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(t('envSaveSuccess'), 'success');
+                    closeEnvModal();
+                    loadEnvVars();
+                } else {
+                    showToast(t('envSaveFailed') + ': ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast(t('envSaveFailed') + ': ' + error.message, 'error');
+            }
+        }
+
+        function closeEnvModal() {
+            document.getElementById('envModal').classList.add('hidden');
+            document.getElementById('envForm').reset();
+            document.getElementById('envKey').disabled = false;
+            document.getElementById('envLevel').disabled = false;
+            editingEnvVar = null;
+            editingEnvLevel = null;
+        }
+
+        async function deleteEnvVar(key, level) {
+            if (!confirm(t('confirmDeleteEnv') + ': ' + key + '?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(\`/api/env/\${encodeURIComponent(key)}?level=\${level}\`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(t('envDeleteSuccess'), 'success');
+                    loadEnvVars();
+                } else {
+                    showToast(t('envDeleteFailed') + ': ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast(t('envDeleteFailed') + ': ' + error.message, 'error');
+            }
+        }
+
+        function updateEnvLevelOptions() {
+            // Can be used to update options based on context
+            // Currently no dynamic updates needed
         }
 
         // MCP Functions

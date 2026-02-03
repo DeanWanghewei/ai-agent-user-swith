@@ -42,6 +42,17 @@ const {
   testMcpServer
 } = require('./mcp');
 
+const {
+  listEnv,
+  addEnv,
+  setEnv,
+  removeEnv,
+  unsetEnv,
+  showEnv,
+  clearEnv,
+  editEnv
+} = require('./env');
+
 module.exports = {
   // Account management commands
   addAccount,
@@ -74,5 +85,15 @@ module.exports = {
   disableMcpServer,
   showEnabledMcpServers,
   syncMcpConfig,
-  testMcpServer
+  testMcpServer,
+
+  // Environment variable management commands
+  listEnv,
+  addEnv,
+  setEnv,
+  removeEnv,
+  unsetEnv,
+  showEnv,
+  clearEnv,
+  editEnv
 };
