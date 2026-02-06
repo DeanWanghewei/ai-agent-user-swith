@@ -22,7 +22,7 @@
     "ai",
     "ai-assistant"
   ],
-  "author": "deanwanghewei@gmail.comnpm view ai-account-switch",
+  "author": "deanwanghewei@gmail.com",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
