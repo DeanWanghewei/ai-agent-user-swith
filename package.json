@@ -1,46 +1,46 @@
 {
-  "name": "ai-account-switch",
-  "version": "1.11.0",
-  "description": "A cross-platform CLI tool to manage and switch Claude/Codex/Droids account configurations",
-  "main": "src/index.js",
-  "bin": {
-    "ais": "./bin/ais.js"
-  },
-  "scripts": {
-    "test": "node src/index.js",
-    "link": "npm link"
-  },
-  "keywords": [
-    "cli",
-    "claude",
-    "codex",
-    "droids",
-    "account",
-    "switch",
-    "cross-platform",
-    "claude-code",
-    "ai",
-    "ai-assistant"
-  ],
-  "author": "deanwanghewei@gmail.com",
-  "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
-  "dependencies": {
-    "commander": "^11.0.0",
-    "chalk": "^4.1.2",
-    "inquirer": "^8.2.5"
-  },
-  "engines": {
-    "node": ">=16.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/DeanWanghewei/ai-agent-user-swith.git"
-  },
-  "bugs": {
-    "url": "https://github.com/DeanWanghewei/ai-agent-user-swith/issues"
-  },
-  "homepage": "https://github.com/DeanWanghewei/ai-agent-user-swith#readme"
+    "name": "ai-account-switch",
+    "version": "1.12.0",
+    "description": "A cross-platform CLI tool to manage and switch Claude/Codex/Droids account configurations",
+    "main": "src/index.js",
+    "bin": {
+        "ais": "./bin/ais.js"
+    },
+    "scripts": {
+        "test": "node src/index.js",
+        "link": "npm link"
+    },
+    "keywords": [
+        "cli",
+        "claude",
+        "codex",
+        "droids",
+        "account",
+        "switch",
+        "cross-platform",
+        "claude-code",
+        "ai",
+        "ai-assistant"
+    ],
+    "author": "deanwanghewei@gmail.com",
+    "license": "MIT",
+    "publishConfig": {
+        "access": "public"
+    },
+    "dependencies": {
+        "commander": "^11.0.0",
+        "chalk": "^4.1.2",
+        "inquirer": "^8.2.5"
+    },
+    "engines": {
+        "node": ">=16.0.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DeanWanghewei/ai-agent-user-swith.git"
+    },
+    "bugs": {
+        "url": "https://github.com/DeanWanghewei/ai-agent-user-swith/issues"
+    },
+    "homepage": "https://github.com/DeanWanghewei/ai-agent-user-swith#readme"
 }
