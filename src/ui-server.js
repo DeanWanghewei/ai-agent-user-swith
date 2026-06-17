@@ -1682,7 +1682,8 @@ class UIServer {
         }
 
         .advanced-content.expanded {
-            max-height: 600px;
+            max-height: 2000px;
+            overflow-y: auto;
             opacity: 1;
         }
 
