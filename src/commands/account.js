@@ -11,6 +11,28 @@ const config = new ConfigManager();
  * Add a new account
  */
 async function addAccount(name, options) {
+    // Provider selection: built-in Claude-protocol presets or Custom (all types)
+    const { PRESETS, findPreset } = require("../presets");
+    const providerChoices = [
+        ...PRESETS.map((p) => ({
+            name: `${p.name}  ${chalk.gray(p.apiUrl)}`,
+            value: p.key,
+        })),
+        { name: "自定义 Custom (手动配置, 所有类型)", value: "__custom__" },
+    ];
+    const { provider } = await inquirer.prompt([
+        {
+            type: "list",
+            name: "provider",
+            message: "选择提供商 Select provider:",
+            choices: providerChoices,
+        },
+    ]);
+
+    if (provider !== "__custom__") {
+        return addAccountFromPreset(findPreset(provider), name);
+    }
+
     // If name not provided, prompt for it
     if (!name) {
         const answers = await inquirer.prompt([
@@ -1200,8 +1222,118 @@ function exportAccount(nameOrId) {
     console.log("");
 }
 
+/**
+ * Create a Claude account from a built-in preset.
+ * Asks only for API Key + confirmable Base URL + active model group.
+ */
+async function addAccountFromPreset(preset, name) {
+    const labels = {
+        latest: preset.modelGroups.latest.label,
+        balanced: preset.modelGroups.balanced.label,
+    };
+
+    console.log(chalk.bold.cyan(`\n📋 ${preset.name} 预设 (Preset)`));
+    console.log(chalk.gray(`   Base URL: ${preset.apiUrl}`));
+    console.log(chalk.gray(`   模型组: ${labels.balanced}(balanced) / ${labels.latest}(latest)`));
+    console.log(
+        chalk.gray(
+            `   环境变量: ${Object.keys(preset.customEnv).map((k) => `${k}=${preset.customEnv[k]}`).join(", ")}`
+        )
+    );
+    const groupEnvSample = Object.keys(preset.modelGroups.latest.config)
+        .filter((k) => !["DEFAULT_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_HAIKU_MODEL", "CLAUDE_CODE_SUBAGENT_MODEL", "ANTHROPIC_MODEL"].includes(k))
+        .join(", ");
+    if (groupEnvSample) console.log(chalk.gray(`   组级参数(示例): ${groupEnvSample}`));
+    console.log("");
+
+    if (!name) {
+        const ans = await inquirer.prompt([
+            {
+                type: "input",
+                name: "accountName",
+                message: "账号名称 Account name:",
+                default: preset.key,
+                validate: (input) => input.trim() !== "" || "Name is required",
+            },
+        ]);
+        name = ans.accountName.trim();
+    }
+
+    if (config.accountExists(name)) {
+        const { overwrite } = await inquirer.prompt([
+            { type: "confirm", name: "overwrite", message: `账号 '${name}' 已存在,是否覆盖? Overwrite?`, default: false },
+        ]);
+        if (!overwrite) {
+            console.log(chalk.yellow("Operation cancelled. (操作已取消。)"));
+            return;
+        }
+    }
+
+    const { apiKey } = await inquirer.prompt([
+        { type: "password", name: "apiKey", message: "API Key:", mask: "*", validate: (input) => input.trim() !== "" || "API Key is required" },
+    ]);
+
+    const { apiUrl } = await inquirer.prompt([
+        { type: "input", name: "apiUrl", message: "Base URL (可直接回车确认,或修改):", default: preset.apiUrl, validate: (input) => input.trim() !== "" || "Base URL is required" },
+    ]);
+
+    const modelGroups = {
+        latest: { ...preset.modelGroups.latest.config },
+        balanced: { ...preset.modelGroups.balanced.config },
+    };
+    const { active } = await inquirer.prompt([
+        {
+            type: "list",
+            name: "active",
+            message: "激活模型组 Active model group:",
+            choices: [
+                { name: `${labels.latest} (latest)`, value: "latest" },
+                { name: `${labels.balanced} (balanced)`, value: "balanced" },
+                { name: "➕ 新建自定义模型组 (custom)", value: "__custom__" },
+            ],
+            default: preset.defaultActiveGroup,
+        },
+    ]);
+    let activeModelGroup = active;
+    if (active === "__custom__") {
+        const { customGroupName } = await inquirer.prompt([
+            { type: "input", name: "customGroupName", message: "自定义模型组名称 Group name:", default: "custom", validate: (input) => input.trim() !== "" || "Name is required" },
+        ]);
+        const cfg = await promptForModelGroup();
+        if (Object.keys(cfg).length === 0) {
+            console.log(chalk.yellow("⚠ 未提供配置,使用 balanced 作为活动组。"));
+            activeModelGroup = "balanced";
+        } else {
+            modelGroups[customGroupName.trim()] = cfg;
+            activeModelGroup = customGroupName.trim();
+        }
+    }
+
+    const { email, description } = await inquirer.prompt([
+        { type: "input", name: "email", message: "邮箱 Email (optional):", default: "" },
+        { type: "input", name: "description", message: "描述 Description (optional):", default: preset.description },
+    ]);
+
+    const accountData = {
+        type: "Claude",
+        apiKey: apiKey.trim(),
+        apiUrl: apiUrl.trim(),
+        email: email.trim(),
+        description: description.trim(),
+        customEnv: { ...preset.customEnv },
+        modelGroups,
+        activeModelGroup,
+    };
+
+    config.addAccount(name, accountData);
+    console.log(chalk.green(`\n✓ Account '${name}' added from ${preset.name} preset!`));
+    console.log(chalk.cyan(`✓ Active model group (活动模型组): ${activeModelGroup}\n`));
+    console.log(chalk.cyan(`💡 Tip (提示): 使用 "ais model add/use/list" 管理模型组;使用 "ais use ${name}" 切换到此账号。\n`));
+}
+
 module.exports = {
     addAccount,
+    addAccountFromPreset,
     listAccounts,
     useAccount,
     showInfo,
