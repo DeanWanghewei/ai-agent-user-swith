@@ -234,6 +234,33 @@ ais remove old-account
 ais rm
 ```
 
+### 预设 Provider (Preset Providers)
+
+`ais add` 第一步可选择内置的 **Claude 协议(Anthropic 兼容)预设**,只需填写 API Key 并确认/修改 Base URL 即可快速创建配置合理的 Claude 账号:
+
+| Provider | Base URL | 最新模型 |
+|---|---|---|
+| GLM 智谱 | `https://open.bigmodel.cn/api/anthropic` | `glm-5.2[1m]` |
+| MiniMax | `https://api.minimax.io/anthropic` | `MiniMax-M2.7` |
+| 通义千问 Qwen | `https://dashscope.aliyuncs.com/apps/anthropic` | `qwen3-coder-plus` |
+| Kimi (Moonshot) | `https://api.moonshot.ai/anthropic` | `kimi-k3` |
+
+```bash
+ais add
+# 选择提供商 → GLM 智谱(或 MiniMax / 通义千问 / Kimi / 自定义)
+# 填写 API Key → 确认或修改 Base URL → 选择活动模型组
+```
+
+- **Provider 级环境变量**(所有预设统一):`CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1`
+- **模型组级参数**(随活动模型组):如 GLM 的 `CLAUDE_CODE_AUTO_COMPACT_WINDOW=1000000`、`ENABLE_TOOL_SEARCH=0`
+- 每个预设含 `latest`(全最新)与 `balanced`(haiku 用更便宜的模型)两个模型组,默认 active = `latest`
+- 预设只是起点 —— 所有字段(含模型组、特殊参数)均可修改,也可继续用 `ais model add` 新增自定义模型组
+- **Web UI** 同样支持:添加账号弹窗顶部的「提供商 Provider」下拉
+
+> 环境变量分层:provider 级写入账号 `customEnv`;模型组级写入模型组配置(`GROUP_ENV_KEYS`),生成器**保留式**处理(只覆盖模型组定义的键,绝不删除用户手动设置的值)。
+>
+> 升级迁移:首次运行新版本时(交互式终端)会一次性提示是否为旧 Claude 账号补充推荐配置,非破坏、默认不改、仅在 TTY 下触发。
+
 ### 高级用法
 
 #### 显示配置路径

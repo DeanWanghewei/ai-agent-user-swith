@@ -194,6 +194,33 @@ ais remove old-account
 ais rm
 ```
 
+### Preset Providers
+
+The first step of `ais add` lets you pick a built-in **Claude-protocol (Anthropic-compatible) preset** — just enter the API Key and confirm/edit the Base URL to quickly create a well-configured Claude account:
+
+| Provider | Base URL | Latest model |
+|---|---|---|
+| GLM (Zhipu) | `https://open.bigmodel.cn/api/anthropic` | `glm-5.2[1m]` |
+| MiniMax | `https://api.minimax.io/anthropic` | `MiniMax-M2.7` |
+| Qwen (Alibaba) | `https://dashscope.aliyuncs.com/apps/anthropic` | `qwen3-coder-plus` |
+| Kimi (Moonshot) | `https://api.moonshot.ai/anthropic` | `kimi-k3` |
+
+```bash
+ais add
+# Select provider → GLM (or MiniMax / Qwen / Kimi / Custom)
+# Enter API Key → confirm or edit Base URL → choose active model group
+```
+
+- **Provider-level env** (all presets): `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1`
+- **Model-group-level params** (follow the active group): e.g. GLM's `CLAUDE_CODE_AUTO_COMPACT_WINDOW=1000000`, `ENABLE_TOOL_SEARCH=0`
+- Each preset ships two model groups — `latest` (all latest) and `balanced` (haiku uses a cheaper model); default active = `latest`
+- A preset is just a starting point — every field (including model groups and special params) is editable, and you can add custom groups with `ais model add`
+- The **Web UI** supports it too: the "Provider" dropdown at the top of the add-account modal
+
+> Env layering: provider-level vars go into the account's `customEnv`; model-group-level vars go into the model-group config (`GROUP_ENV_KEYS`) and are applied **preserve-only** (only keys the group defines are set; user-set values are never removed).
+>
+> Upgrade migration: on the first run of a new version (interactive TTY only), you're prompted once to retrofit recommended config onto existing Claude accounts — non-destructive, opt-in, never silent.
+
 ### Advanced Usage
 
 #### Show Configuration Paths
