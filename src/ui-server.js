@@ -1600,6 +1600,16 @@ class UIServer {
             flex: 1;
         }
 
+        .group-env-item {
+            display: flex;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .group-env-item input {
+            flex: 1;
+        }
+
         .empty-state {
             text-align: center;
             padding: 60px 20px;
