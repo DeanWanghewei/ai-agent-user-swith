@@ -2328,6 +2328,7 @@ class UIServer {
                 customProvider: '自定义 Custom',
                 groupSpecialParams: '特殊参数 Special params (KEY=VALUE)',
                 addGroupParam: '+ 添加参数',
+                presetAppliedHint: '💡 已套用 {name} 预设,所有字段均可修改 — 只需填写 API Key',
                 defaultModel: 'DEFAULT_MODEL (基础模型，其他未设置时使用)',
                 defaultModelPlaceholder: 'claude-sonnet-4-5-20250929',
                 save: '保存',
@@ -2452,6 +2453,7 @@ class UIServer {
                 customProvider: 'Custom',
                 groupSpecialParams: 'Special params (KEY=VALUE)',
                 addGroupParam: '+ Add param',
+                presetAppliedHint: '💡 Applied {name} preset — all fields are editable, just fill in the API Key',
                 defaultModel: 'DEFAULT_MODEL (base model, used if others are not set)',
                 defaultModelPlaceholder: 'claude-sonnet-4-5-20250929',
                 save: 'Save',
@@ -3033,6 +3035,7 @@ class UIServer {
 
         function editAccount(name) {
             editingAccount = name;
+            resetPresetUI();
             const account = accounts[name];
 
             document.getElementById('modalTitle').textContent = t('editAccountTitle');
@@ -3134,6 +3137,7 @@ class UIServer {
         }
 
         function closeModal() {
+            resetPresetUI();
             document.getElementById('accountModal').classList.remove('active');
         }
 
@@ -3186,7 +3190,9 @@ class UIServer {
             const sel = document.getElementById('providerPreset');
             if (PRESETS_CACHE.length === 0) {
                 try {
-                    PRESETS_CACHE = await (await fetch('/api/presets')).json();
+                    const r = await fetch('/api/presets');
+                    if (!r.ok) throw new Error('presets fetch failed');
+                    PRESETS_CACHE = await r.json();
                 } catch (e) { PRESETS_CACHE = []; }
                 PRESETS_CACHE.forEach(p => {
                     const opt = document.createElement('option');
@@ -3215,10 +3221,12 @@ class UIServer {
 
             document.getElementById('apiUrl').value = preset.apiUrl;
             if (preset.description) document.getElementById('description').value = preset.description;
-            if (!document.getElementById('accountName').value) document.getElementById('accountName').value = preset.key;
+            const nameEl = document.getElementById('accountName');
+            if (!nameEl.value || PRESETS_CACHE.some(p => p.key === nameEl.value)) nameEl.value = preset.key;
 
             const envList = document.getElementById('envVarsList');
             envList.innerHTML = '';
+            envVarCount = 0;
             Object.entries(preset.customEnv || {}).forEach(([k, v]) => addEnvVar(k, v));
 
             const mgList = document.getElementById('modelGroupsList');
@@ -3235,7 +3243,16 @@ class UIServer {
             document.getElementById('advancedToggleIcon').classList.add('expanded');
 
             hint.style.display = 'block';
-            hint.textContent = '💡 已套用 ' + preset.name + ' 预设,所有字段均可修改 — 只需填写 API Key';
+            hint.textContent = t('presetAppliedHint').replace('{name}', preset.name);
+        }
+
+        function resetPresetUI() {
+            const sel = document.getElementById('providerPreset');
+            if (sel) sel.value = '__custom__';
+            const hintEl = document.getElementById('presetHint');
+            if (hintEl) hintEl.style.display = 'none';
+            const typeEl = document.getElementById('accountType');
+            if (typeEl) typeEl.disabled = false;
         }
 
         function addModelGroupUI(groupNameArg, configArg) {
