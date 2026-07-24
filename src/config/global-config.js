@@ -253,6 +253,23 @@ class GlobalConfigManager {
   }
 
   /**
+   * Get the ais version at which the one-time migration last ran (or null)
+   */
+  getMigrationVersion() {
+    const config = this.read();
+    return (config.migration && config.migration.lastRunVersion) || null;
+  }
+
+  /**
+   * Record the ais version at which the one-time migration last ran
+   */
+  setMigrationVersion(version) {
+    const config = this.read();
+    config.migration = { ...(config.migration || {}), lastRunVersion: version };
+    this.save(config);
+  }
+
+  /**
    * Get configuration file paths
    */
   getConfigPaths() {
