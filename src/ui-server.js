@@ -1929,6 +1929,13 @@ class UIServer {
             <div class="modal-header" id="modalTitle" data-i18n="addAccountTitle">添加账号</div>
             <form id="accountForm" onsubmit="saveAccount(event)">
                 <div class="form-group">
+                    <label for="providerPreset" data-i18n="provider">提供商 Provider</label>
+                    <select id="providerPreset" onchange="applyPreset()">
+                        <option value="__custom__" data-i18n="customProvider">自定义 Custom</option>
+                    </select>
+                    <small id="presetHint" style="color: #666; display: none; margin-top: 5px;"></small>
+                </div>
+                <div class="form-group">
                     <label for="accountName" data-i18n="accountName">账号名称 *</label>
                     <input type="text" id="accountName" required data-i18n-placeholder="accountNamePlaceholder" placeholder="例如: my-claude-account">
                 </div>
@@ -2317,6 +2324,10 @@ class UIServer {
                 addModelGroup: '+ 添加模型组',
                 modelGroupName: '模型组名称',
                 setActive: '设为激活',
+                provider: '提供商 Provider',
+                customProvider: '自定义 Custom',
+                groupSpecialParams: '特殊参数 Special params (KEY=VALUE)',
+                addGroupParam: '+ 添加参数',
                 defaultModel: 'DEFAULT_MODEL (基础模型，其他未设置时使用)',
                 defaultModelPlaceholder: 'claude-sonnet-4-5-20250929',
                 save: '保存',
@@ -2437,6 +2448,10 @@ class UIServer {
                 addModelGroup: '+ Add Model Group',
                 modelGroupName: 'Model Group Name',
                 setActive: 'Set Active',
+                provider: 'Provider',
+                customProvider: 'Custom',
+                groupSpecialParams: 'Special params (KEY=VALUE)',
+                addGroupParam: '+ Add param',
                 defaultModel: 'DEFAULT_MODEL (base model, used if others are not set)',
                 defaultModelPlaceholder: 'claude-sonnet-4-5-20250929',
                 save: 'Save',
@@ -2573,9 +2588,9 @@ class UIServer {
             });
             // Special params (group-level env) section
             fieldsDiv.appendChild(el('div', { className: 'group-env-section', style: 'margin-top:8px;border-top:1px dashed #ccc;padding-top:8px;' }, [
-                el('label', { style: 'font-size:12px;color:#666;' }, ['特殊参数 Special params (KEY=VALUE)']),
+                el('label', { style: 'font-size:12px;color:#666;' }, [t('groupSpecialParams')]),
                 el('div', { id: 'groupEnvList' + groupId }),
-                el('button', { type: 'button', className: 'btn btn-secondary btn-small', onClick: () => addGroupEnvVarUI(groupId) }, ['+ 添加参数']),
+                el('button', { type: 'button', className: 'btn btn-secondary btn-small', onClick: () => addGroupEnvVarUI(groupId) }, [t('addGroupParam')]),
             ]));
 
             return el('div', { className: 'model-group-item', id: 'modelGroup' + groupId }, [
@@ -2990,7 +3005,7 @@ class UIServer {
             }
         }
 
-        function showAddModal() {
+        async function showAddModal() {
             editingAccount = null;
             document.getElementById('modalTitle').textContent = t('addAccountTitle');
             document.getElementById('accountForm').reset();
@@ -3008,6 +3023,11 @@ class UIServer {
             document.getElementById('advancedToggleIcon').classList.remove('expanded');
             // Toggle model fields based on default type (Claude)
             toggleModelFields();
+            await loadProviderPresets();
+            document.getElementById('providerPreset').value = '__custom__';
+            document.getElementById('presetHint').style.display = 'none';
+            document.getElementById('accountType').disabled = false;
+            setTimeout(() => document.getElementById('apiKey').focus(), 50);
             document.getElementById('accountModal').classList.add('active');
         }
 
@@ -3159,6 +3179,63 @@ class UIServer {
                 content.classList.add('expanded');
                 icon.classList.add('expanded');
             }
+        }
+
+        let PRESETS_CACHE = [];
+        async function loadProviderPresets() {
+            const sel = document.getElementById('providerPreset');
+            if (PRESETS_CACHE.length === 0) {
+                try {
+                    PRESETS_CACHE = await (await fetch('/api/presets')).json();
+                } catch (e) { PRESETS_CACHE = []; }
+                PRESETS_CACHE.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.key;
+                    opt.textContent = p.name; // safe
+                    sel.appendChild(opt);
+                });
+            }
+        }
+
+        function applyPreset() {
+            const key = document.getElementById('providerPreset').value;
+            const hint = document.getElementById('presetHint');
+            if (key === '__custom__') {
+                hint.style.display = 'none';
+                document.getElementById('accountType').disabled = false;
+                return;
+            }
+            const preset = PRESETS_CACHE.find(p => p.key === key);
+            if (!preset) return;
+
+            const typeSel = document.getElementById('accountType');
+            typeSel.value = 'Claude';
+            typeSel.disabled = true;
+            toggleModelFields();
+
+            document.getElementById('apiUrl').value = preset.apiUrl;
+            if (preset.description) document.getElementById('description').value = preset.description;
+            if (!document.getElementById('accountName').value) document.getElementById('accountName').value = preset.key;
+
+            const envList = document.getElementById('envVarsList');
+            envList.innerHTML = '';
+            Object.entries(preset.customEnv || {}).forEach(([k, v]) => addEnvVar(k, v));
+
+            const mgList = document.getElementById('modelGroupsList');
+            mgList.innerHTML = '';
+            modelGroupCount = 0;
+            activeModelGroup = null;
+            ['latest', 'balanced'].forEach(gk => {
+                const def = preset.modelGroups[gk];
+                if (!def) return;
+                const id = addModelGroupUI(def.label || gk, def.config || {});
+                if (gk === (preset.defaultActiveGroup || 'latest') && id != null) setActiveModelGroup(id);
+            });
+            document.getElementById('advancedContent').classList.add('expanded');
+            document.getElementById('advancedToggleIcon').classList.add('expanded');
+
+            hint.style.display = 'block';
+            hint.textContent = '💡 已套用 ' + preset.name + ' 预设,所有字段均可修改 — 只需填写 API Key';
         }
 
         function addModelGroupUI(groupNameArg, configArg) {
