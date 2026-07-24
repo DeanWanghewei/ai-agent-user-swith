@@ -42,6 +42,15 @@ const MODEL_KEYS = [
   'ANTHROPIC_MODEL'
 ];
 
+// Environment variable keys managed per model-group (preserve-only on regen).
+// The Claude generator sets these from the active model group only when the group
+// defines them; it never removes ones the group omits (non-destructive).
+// Add new group-scoped env keys here (release-time maintenance).
+const GROUP_ENV_KEYS = [
+  'CLAUDE_CODE_AUTO_COMPACT_WINDOW',
+  'ENABLE_TOOL_SEARCH'
+];
+
 // Configuration file names
 const CONFIG_FILES = {
   GLOBAL_DIR: '.ai-account-switch',
@@ -80,6 +89,7 @@ module.exports = {
   MCP_SCOPES,
   DEFAULT_MCP_SCOPE,
   MODEL_KEYS,
+  GROUP_ENV_KEYS,
   CONFIG_FILES,
   DEFAULT_CCR_PORT,
   GITIGNORE_ENTRIES
