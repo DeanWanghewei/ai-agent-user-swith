@@ -2523,6 +2523,66 @@ class UIServer {
         let editingAccount = null;
         let envVarCount = 0;
         let modelGroupCount = 0;
+        // Safe DOM helper: create an element without innerHTML (XSS-safe).
+        // attrs: { className, type, value, placeholder, style, id, onClick (fn), ... }
+        // children: string | Node | Array of either
+        function el(tag, attrs, children) {
+            const node = document.createElement(tag);
+            (attrs && Object.entries(attrs) || []).forEach(([k, v]) => {
+                if (v == null) return;
+                if (k === 'className') node.className = v;
+                else if (k === 'style') node.style.cssText = v;
+                else if (/^on[A-Z]/.test(k) && typeof v === 'function') node.addEventListener(k.slice(2).toLowerCase(), v);
+                else node.setAttribute(k, v);
+            });
+            (Array.isArray(children) ? children : [children]).forEach(c => {
+                if (c == null) return;
+                node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+            });
+            return node;
+        }
+        const MODEL_KEY_NAMES = ['DEFAULT_MODEL','ANTHROPIC_DEFAULT_OPUS_MODEL','ANTHROPIC_DEFAULT_SONNET_MODEL','ANTHROPIC_DEFAULT_HAIKU_MODEL','CLAUDE_CODE_SUBAGENT_MODEL','ANTHROPIC_MODEL'];
+        const MODEL_GROUP_FIELDS = [
+            ['groupDefaultModel', 'defaultModel', 'DEFAULT_MODEL', null],
+            ['groupOpusModel', null, 'ANTHROPIC_DEFAULT_OPUS_MODEL', 'claude-opus-4-20250514'],
+            ['groupSonnetModel', null, 'ANTHROPIC_DEFAULT_SONNET_MODEL', 'claude-sonnet-4-5-20250929'],
+            ['groupHaikuModel', null, 'ANTHROPIC_DEFAULT_HAIKU_MODEL', 'claude-3-5-haiku-20241022'],
+            ['groupSubagentModel', null, 'CLAUDE_CODE_SUBAGENT_MODEL', 'claude-sonnet-4-5-20250929'],
+            ['groupAnthropicModel', null, 'ANTHROPIC_MODEL', 'claude-sonnet-4-5-20250929'],
+        ];
+
+        function buildModelGroupItem(groupId, groupName, cfg, isActive) {
+            const fieldsDiv = el('div', { className: 'model-group-fields' });
+            MODEL_GROUP_FIELDS.forEach(([idSuffix, i18nKey, key, ph]) => {
+                const label = i18nKey ? t(i18nKey) : key;
+                const phVal = ph || (i18nKey ? t('defaultModelPlaceholder') : '');
+                fieldsDiv.appendChild(el('div', {}, [
+                    el('label', {}, [label]),
+                    el('input', { type: 'text', id: idSuffix + groupId, value: cfg[key] || '', placeholder: phVal }),
+                ]));
+            });
+            // Special params (group-level env) section
+            fieldsDiv.appendChild(el('div', { className: 'group-env-section', style: 'margin-top:8px;border-top:1px dashed #ccc;padding-top:8px;' }, [
+                el('label', { style: 'font-size:12px;color:#666;' }, ['特殊参数 Special params (KEY=VALUE)']),
+                el('div', { id: 'groupEnvList' + groupId }),
+                el('button', { type: 'button', className: 'btn btn-secondary btn-small', onClick: () => addGroupEnvVarUI(groupId) }, ['+ 添加参数']),
+            ]));
+
+            return el('div', { className: 'model-group-item', id: 'modelGroup' + groupId }, [
+                el('input', { type: 'hidden', id: 'groupName' + groupId, value: groupName }),
+                el('div', { className: 'model-group-header' }, [
+                    el('div', { className: 'model-group-name' }, [
+                        document.createTextNode(groupName + ' '),
+                        el('span', { className: 'active-badge', id: 'activeBadge' + groupId, style: 'display:' + (isActive ? 'inline-block' : 'none') }, ['Active']),
+                    ]),
+                    el('div', { className: 'model-group-actions' }, [
+                        el('button', { type: 'button', className: 'btn btn-secondary btn-small', onClick: () => setActiveModelGroup(groupId) }, [t('setActive')]),
+                        el('button', { type: 'button', className: 'btn btn-danger btn-small', onClick: () => removeModelGroupUI(groupId) }, ['×']),
+                    ]),
+                ]),
+                fieldsDiv,
+            ]);
+        }
         let activeModelGroup = null;
 
         // MCP related variables
@@ -3022,49 +3082,12 @@ class UIServer {
                     }
 
                     const container = document.getElementById('modelGroupsList');
-                    const div = document.createElement('div');
-                    div.className = 'model-group-item';
-                    div.id = \`modelGroup\${groupId}\`;
-                    div.innerHTML = \`
-                        <div class="model-group-header">
-                            <div class="model-group-name">
-                                \${groupName}
-                                <span class="active-badge" id="activeBadge\${groupId}" style="display: \${isActive ? 'inline-block' : 'none'}">Active</span>
-                            </div>
-                            <div class="model-group-actions">
-                                <button type="button" class="btn btn-secondary btn-small" onclick="setActiveModelGroup(\${groupId})">\${t('setActive')}</button>
-                                <button type="button" class="btn btn-danger btn-small" onclick="removeModelGroupUI(\${groupId})">×</button>
-                            </div>
-                        </div>
-                        <input type="hidden" id="groupName\${groupId}" value="\${groupName}">
-                        <div class="model-group-fields">
-                            <div>
-                                <label>\${t('defaultModel')}</label>
-                                <input type="text" id="groupDefaultModel\${groupId}" value="\${groupConfig.DEFAULT_MODEL || ''}" placeholder="\${t('defaultModelPlaceholder')}">
-                            </div>
-                            <div>
-                                <label>ANTHROPIC_DEFAULT_OPUS_MODEL</label>
-                                <input type="text" id="groupOpusModel\${groupId}" value="\${groupConfig.ANTHROPIC_DEFAULT_OPUS_MODEL || ''}" placeholder="claude-opus-4-20250514">
-                            </div>
-                            <div>
-                                <label>ANTHROPIC_DEFAULT_SONNET_MODEL</label>
-                                <input type="text" id="groupSonnetModel\${groupId}" value="\${groupConfig.ANTHROPIC_DEFAULT_SONNET_MODEL || ''}" placeholder="claude-sonnet-4-5-20250929">
-                            </div>
-                            <div>
-                                <label>ANTHROPIC_DEFAULT_HAIKU_MODEL</label>
-                                <input type="text" id="groupHaikuModel\${groupId}" value="\${groupConfig.ANTHROPIC_DEFAULT_HAIKU_MODEL || ''}" placeholder="claude-3-5-haiku-20241022">
-                            </div>
-                            <div>
-                                <label>CLAUDE_CODE_SUBAGENT_MODEL</label>
-                                <input type="text" id="groupSubagentModel\${groupId}" value="\${groupConfig.CLAUDE_CODE_SUBAGENT_MODEL || ''}" placeholder="claude-sonnet-4-5-20250929">
-                            </div>
-                            <div>
-                                <label>ANTHROPIC_MODEL</label>
-                                <input type="text" id="groupAnthropicModel\${groupId}" value="\${groupConfig.ANTHROPIC_MODEL || ''}" placeholder="claude-sonnet-4-5-20250929">
-                            </div>
-                        </div>
-                    \`;
+                    const div = buildModelGroupItem(groupId, groupName, groupConfig, isActive);
                     container.appendChild(div);
+                    // Render existing special params for this group
+                    Object.keys(groupConfig)
+                        .filter(k => !MODEL_KEY_NAMES.includes(k))
+                        .forEach(k => addGroupEnvVarUI(groupId, k, groupConfig[k]));
                 });
 
                     // Expand advanced settings if model groups exist
@@ -3098,6 +3121,19 @@ class UIServer {
             container.appendChild(div);
         }
 
+        function addGroupEnvVarUI(groupId, key, value) {
+            const list = document.getElementById('groupEnvList' + groupId);
+            if (!list) return;
+            const row = el('div', { className: 'group-env-item', style: 'display:flex;gap:6px;margin-top:4px;' }, [
+                el('input', { type: 'text', className: 'group-env-key', placeholder: 'KEY', value: key || '' }),
+                el('input', { type: 'text', className: 'group-env-value', placeholder: 'VALUE', value: value || '' }),
+            ]);
+            const removeBtn = el('button', { type: 'button', className: 'btn btn-danger btn-small' }, ['×']);
+            removeBtn.addEventListener('click', () => row.remove());
+            row.appendChild(removeBtn);
+            list.appendChild(row);
+        }
+
         function removeEnvVar(id) {
             document.getElementById(\`envVar\${id}\`).remove();
         }
@@ -3115,64 +3151,25 @@ class UIServer {
             }
         }
 
-        function addModelGroupUI() {
+        function addModelGroupUI(groupNameArg, configArg) {
+            const groupName = groupNameArg != null ? groupNameArg : prompt(t('modelGroupName') + ':');
+            if (!groupName || !groupName.trim()) return null;
+
             const groupId = modelGroupCount++;
-            const groupName = prompt(t('modelGroupName') + ':');
-
-            if (!groupName || !groupName.trim()) {
-                return;
-            }
-
             const container = document.getElementById('modelGroupsList');
             const isFirst = container.children.length === 0;
+            if (isFirst) activeModelGroup = groupId;
 
-            if (isFirst) {
-                activeModelGroup = groupId;
-            }
-
-            const div = document.createElement('div');
-            div.className = 'model-group-item';
-            div.id = \`modelGroup\${groupId}\`;
-            div.innerHTML = \`
-                <div class="model-group-header">
-                    <div class="model-group-name">
-                        \${groupName}
-                        <span class="active-badge" id="activeBadge\${groupId}" style="display: \${isFirst ? 'inline-block' : 'none'}">Active</span>
-                    </div>
-                    <div class="model-group-actions">
-                        <button type="button" class="btn btn-secondary btn-small" onclick="setActiveModelGroup(\${groupId})">\${t('setActive')}</button>
-                        <button type="button" class="btn btn-danger btn-small" onclick="removeModelGroupUI(\${groupId})">×</button>
-                    </div>
-                </div>
-                <input type="hidden" id="groupName\${groupId}" value="\${groupName}">
-                <div class="model-group-fields">
-                    <div>
-                        <label>\${t('defaultModel')}</label>
-                        <input type="text" id="groupDefaultModel\${groupId}" placeholder="\${t('defaultModelPlaceholder')}">
-                    </div>
-                    <div>
-                        <label>ANTHROPIC_DEFAULT_OPUS_MODEL</label>
-                        <input type="text" id="groupOpusModel\${groupId}" placeholder="claude-opus-4-20250514">
-                    </div>
-                    <div>
-                        <label>ANTHROPIC_DEFAULT_SONNET_MODEL</label>
-                        <input type="text" id="groupSonnetModel\${groupId}" placeholder="claude-sonnet-4-5-20250929">
-                    </div>
-                    <div>
-                        <label>ANTHROPIC_DEFAULT_HAIKU_MODEL</label>
-                        <input type="text" id="groupHaikuModel\${groupId}" placeholder="claude-3-5-haiku-20241022">
-                    </div>
-                    <div>
-                        <label>CLAUDE_CODE_SUBAGENT_MODEL</label>
-                        <input type="text" id="groupSubagentModel\${groupId}" placeholder="claude-sonnet-4-5-20250929">
-                    </div>
-                    <div>
-                        <label>ANTHROPIC_MODEL</label>
-                        <input type="text" id="groupAnthropicModel\${groupId}" placeholder="claude-sonnet-4-5-20250929">
-                    </div>
-                </div>
-            \`;
+            const cfg = configArg || {};
+            const div = buildModelGroupItem(groupId, groupName, cfg, isFirst);
             container.appendChild(div);
+
+            // Render group-level (special) env rows preset in cfg
+            Object.keys(cfg)
+                .filter(k => !MODEL_KEY_NAMES.includes(k))
+                .forEach(k => addGroupEnvVarUI(groupId, k, cfg[k]));
+
+            return groupId;
         }
 
         function removeModelGroupUI(id) {
@@ -3303,6 +3300,11 @@ class UIServer {
                 if (subagentModel) groupConfig.CLAUDE_CODE_SUBAGENT_MODEL = subagentModel;
                 if (anthropicModel) groupConfig.ANTHROPIC_MODEL = anthropicModel;
 
+                item.querySelectorAll('.group-env-item').forEach(envItem => {
+                    const ek = envItem.querySelector('.group-env-key').value.trim();
+                    const ev = envItem.querySelector('.group-env-value').value.trim();
+                    if (ek && ev && !MODEL_KEY_NAMES.includes(ek)) groupConfig[ek] = ev;
+                });
                 accountData.modelGroups[groupName] = groupConfig;
 
                     // Check if this is the active group
