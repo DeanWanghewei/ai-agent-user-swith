@@ -1227,6 +1227,10 @@ function exportAccount(nameOrId) {
  * Asks only for API Key + confirmable Base URL + active model group.
  */
 async function addAccountFromPreset(preset, name) {
+    if (!preset) {
+        console.error(chalk.red("✗ Unknown preset (未知预设)。"));
+        return;
+    }
     const labels = {
         latest: preset.modelGroups.latest.label,
         balanced: preset.modelGroups.balanced.label,
@@ -1235,11 +1239,13 @@ async function addAccountFromPreset(preset, name) {
     console.log(chalk.bold.cyan(`\n📋 ${preset.name} 预设 (Preset)`));
     console.log(chalk.gray(`   Base URL: ${preset.apiUrl}`));
     console.log(chalk.gray(`   模型组: ${labels.balanced}(balanced) / ${labels.latest}(latest)`));
-    console.log(
-        chalk.gray(
-            `   环境变量: ${Object.keys(preset.customEnv).map((k) => `${k}=${preset.customEnv[k]}`).join(", ")}`
-        )
-    );
+    if (Object.keys(preset.customEnv).length > 0) {
+        console.log(
+            chalk.gray(
+                `   环境变量: ${Object.keys(preset.customEnv).map((k) => `${k}=${preset.customEnv[k]}`).join(", ")}`
+            )
+        );
+    }
     const groupEnvSample = Object.keys(preset.modelGroups.latest.config)
         .filter((k) => !["DEFAULT_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_HAIKU_MODEL", "CLAUDE_CODE_SUBAGENT_MODEL", "ANTHROPIC_MODEL"].includes(k))
         .join(", ");
@@ -1251,9 +1257,9 @@ async function addAccountFromPreset(preset, name) {
             {
                 type: "input",
                 name: "accountName",
-                message: "账号名称 Account name:",
+                message: "Account name (账号名称):",
                 default: preset.key,
-                validate: (input) => input.trim() !== "" || "Name is required",
+                validate: (input) => input.trim() !== "" || "Name is required (名称不能为空)",
             },
         ]);
         name = ans.accountName.trim();
@@ -1261,7 +1267,7 @@ async function addAccountFromPreset(preset, name) {
 
     if (config.accountExists(name)) {
         const { overwrite } = await inquirer.prompt([
-            { type: "confirm", name: "overwrite", message: `账号 '${name}' 已存在,是否覆盖? Overwrite?`, default: false },
+            { type: "confirm", name: "overwrite", message: `Account '${name}' already exists. Overwrite? (账号 '${name}' 已存在。是否覆盖?)`, default: false },
         ]);
         if (!overwrite) {
             console.log(chalk.yellow("Operation cancelled. (操作已取消。)"));
@@ -1270,11 +1276,11 @@ async function addAccountFromPreset(preset, name) {
     }
 
     const { apiKey } = await inquirer.prompt([
-        { type: "password", name: "apiKey", message: "API Key:", mask: "*", validate: (input) => input.trim() !== "" || "API Key is required" },
+        { type: "password", name: "apiKey", message: "Enter API Key (请输入 API Key):", mask: "*", validate: (input) => input.trim() !== "" || "API Key is required (API Key 不能为空)" },
     ]);
 
     const { apiUrl } = await inquirer.prompt([
-        { type: "input", name: "apiUrl", message: "Base URL (可直接回车确认,或修改):", default: preset.apiUrl, validate: (input) => input.trim() !== "" || "Base URL is required" },
+        { type: "input", name: "apiUrl", message: "Base URL — press Enter to confirm, or edit (直接回车确认,或修改):", default: preset.apiUrl, validate: (input) => input.trim() !== "" || "Base URL is required (Base URL 不能为空)" },
     ]);
 
     const modelGroups = {
@@ -1285,11 +1291,11 @@ async function addAccountFromPreset(preset, name) {
         {
             type: "list",
             name: "active",
-            message: "激活模型组 Active model group:",
+            message: "Active model group (激活模型组):",
             choices: [
                 { name: `${labels.latest} (latest)`, value: "latest" },
                 { name: `${labels.balanced} (balanced)`, value: "balanced" },
-                { name: "➕ 新建自定义模型组 (custom)", value: "__custom__" },
+                { name: "➕ New custom model group (新建自定义模型组)", value: "__custom__" },
             ],
             default: preset.defaultActiveGroup,
         },
@@ -1297,11 +1303,22 @@ async function addAccountFromPreset(preset, name) {
     let activeModelGroup = active;
     if (active === "__custom__") {
         const { customGroupName } = await inquirer.prompt([
-            { type: "input", name: "customGroupName", message: "自定义模型组名称 Group name:", default: "custom", validate: (input) => input.trim() !== "" || "Name is required" },
+            {
+                type: "input",
+                name: "customGroupName",
+                message: "Custom model group name (自定义模型组名称):",
+                default: "custom",
+                validate: (input) => {
+                    const v = input.trim();
+                    if (!v) return "Name is required (名称不能为空)";
+                    if (v === "latest" || v === "balanced") return "Reserved name, pick another (名称保留,请换一个)";
+                    return true;
+                },
+            },
         ]);
         const cfg = await promptForModelGroup();
         if (Object.keys(cfg).length === 0) {
-            console.log(chalk.yellow("⚠ 未提供配置,使用 balanced 作为活动组。"));
+            console.log(chalk.yellow("⚠ No config provided, using balanced as active (未提供配置,使用 balanced 作为活动组)。"));
             activeModelGroup = "balanced";
         } else {
             modelGroups[customGroupName.trim()] = cfg;
@@ -1310,12 +1327,12 @@ async function addAccountFromPreset(preset, name) {
     }
 
     const { email, description } = await inquirer.prompt([
-        { type: "input", name: "email", message: "邮箱 Email (optional):", default: "" },
-        { type: "input", name: "description", message: "描述 Description (optional):", default: preset.description },
+        { type: "input", name: "email", message: "Email, optional (邮箱,可选):", default: "" },
+        { type: "input", name: "description", message: "Description, optional (描述,可选):", default: preset.description },
     ]);
 
     const accountData = {
-        type: "Claude",
+        type: preset.type || "Claude",
         apiKey: apiKey.trim(),
         apiUrl: apiUrl.trim(),
         email: email.trim(),
@@ -1328,7 +1345,7 @@ async function addAccountFromPreset(preset, name) {
     config.addAccount(name, accountData);
     console.log(chalk.green(`\n✓ Account '${name}' added from ${preset.name} preset!`));
     console.log(chalk.cyan(`✓ Active model group (活动模型组): ${activeModelGroup}\n`));
-    console.log(chalk.cyan(`💡 Tip (提示): 使用 "ais model add/use/list" 管理模型组;使用 "ais use ${name}" 切换到此账号。\n`));
+    console.log(chalk.cyan(`💡 Tip (提示): 使用 "ais model add" / "ais model use" / "ais model list" 管理模型组;使用 "ais use ${name}" 切换到此账号。\n`));
 }
 
 module.exports = {
