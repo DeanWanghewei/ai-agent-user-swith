@@ -44,10 +44,10 @@ function applyPresetGroups(config, name, preset) {
   const acc = config.getAccount(name);
   if (!acc) return false;
   if (acc.modelGroups && Object.keys(acc.modelGroups).length > 0) return false;
-  acc.modelGroups = {
-    latest: { ...preset.modelGroups.latest.config },
-    balanced: { ...preset.modelGroups.balanced.config },
-  };
+  acc.modelGroups = {};
+  Object.entries(preset.modelGroups || {}).forEach(([k, v]) => {
+    acc.modelGroups[k] = { ...(v.config || {}) };
+  });
   acc.activeModelGroup = preset.defaultActiveGroup;
   config.addAccount(name, acc);
   return true;
@@ -75,41 +75,43 @@ async function maybeRunMigration() {
   if (needsBetas.length) console.log(chalk.gray(`   • 补充 ${BETAS}=1: ${needsBetas.join(', ')}`));
   presetMatch.forEach((m) => console.log(chalk.gray(`   • 套用预设模型组 (${m.preset.name}): ${m.name}`)));
 
-  const { action } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'action',
-      message: '是否补充?',
-      choices: [
-        { name: '全部补充 Apply all', value: 'all' },
-        { name: '逐个选择 Choose', value: 'choose' },
-        { name: '跳过 Skip', value: 'skip' },
-      ],
-      default: 'skip',
-    },
-  ]);
+  try {
+    const { action } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: '是否补充? Apply recommended config?',
+        choices: [
+          { name: '全部补充 Apply all', value: 'all' },
+          { name: '逐个选择 Choose', value: 'choose' },
+          { name: '跳过 Skip', value: 'skip' },
+        ],
+        default: 'skip',
+      },
+    ]);
 
-  if (action === 'skip') {
+    if (action === 'skip') {
+      console.log(chalk.yellow('已跳过 (skipped)。'));
+    } else {
+      for (const name of needsBetas) {
+        if (action === 'all' || (await confirmSingle(name, '补充 BETAS 环境变量'))) {
+          if (applyBetas(config, name)) console.log(chalk.green(`✓ ${name}: +${BETAS}=1`));
+        }
+      }
+      for (const m of presetMatch) {
+        if (action === 'all' || (await confirmSingle(m.name, `套用 ${m.preset.name} 预设模型组`))) {
+          if (applyPresetGroups(config, m.name, m.preset)) console.log(chalk.green(`✓ ${m.name}: 套用 ${m.preset.name} 模型组`));
+        }
+      }
+      console.log(chalk.green('迁移完成 (migration done)。\n'));
+    }
+  } catch (e) {
+    // User cancelled (Ctrl+C / EOF) or prompt failed. Treat as "not now" for this version
+    // so we don't nag on every subsequent command — and never crash the user's real command.
+    console.log(chalk.yellow('\n⚠ 已跳过迁移 (migration skipped)。'));
+  } finally {
     config.globalConfig.setMigrationVersion(currentVersion);
-    console.log(chalk.yellow('已跳过 (skipped)。'));
-    return;
   }
-
-  for (const name of needsBetas) {
-    if (action === 'all' || (await confirmSingle(name, '补充 BETAS'))) {
-      applyBetas(config, name);
-      console.log(chalk.green(`✓ ${name}: +${BETAS}=1`));
-    }
-  }
-  for (const m of presetMatch) {
-    if (action === 'all' || (await confirmSingle(m.name, `套用 ${m.preset.name} 预设模型组`))) {
-      applyPresetGroups(config, m.name, m.preset);
-      console.log(chalk.green(`✓ ${m.name}: 套用 ${m.preset.name} 模型组`));
-    }
-  }
-
-  config.globalConfig.setMigrationVersion(currentVersion);
-  console.log(chalk.green('迁移完成 (migration done)。\n'));
 }
 
 async function confirmSingle(name, label) {
