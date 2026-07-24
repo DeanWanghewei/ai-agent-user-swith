@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const BaseGenerator = require('./base-generator');
-const { MODEL_KEYS, CONFIG_FILES } = require('../constants');
+const { MODEL_KEYS, CONFIG_FILES, GROUP_ENV_KEYS } = require('../constants');
 
 class ClaudeGenerator extends BaseGenerator {
   constructor(projectRoot) {
@@ -100,6 +100,14 @@ class ClaudeGenerator extends BaseGenerator {
             claudeConfig.env[key] = defaultModel;
           }
         });
+
+        // Apply group-level env (preserve-only): set only keys the active group defines.
+        // Keys the group does NOT define are left untouched in existingConfig.env (non-destructive).
+        GROUP_ENV_KEYS.forEach(gKey => {
+          if (activeGroup[gKey] !== undefined) {
+            claudeConfig.env[gKey] = activeGroup[gKey];
+          }
+        });
       }
     }
     // Backward compatibility: support old modelConfig structure
@@ -115,6 +123,12 @@ class ClaudeGenerator extends BaseGenerator {
           claudeConfig.env[key] = account.modelConfig[key];
         } else if (defaultModel) {
           claudeConfig.env[key] = defaultModel;
+        }
+      });
+
+      GROUP_ENV_KEYS.forEach(gKey => {
+        if (account.modelConfig[gKey] !== undefined) {
+          claudeConfig.env[gKey] = account.modelConfig[gKey];
         }
       });
     }
