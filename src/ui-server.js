@@ -88,7 +88,12 @@ class UIServer {
     }
 
     // API Routes
-    if (pathname === '/api/accounts' && req.method === 'GET') {
+    if (pathname === '/api/presets' && req.method === 'GET') {
+      const { getPresets } = require('./presets');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(getPresets()));
+      return;
+    } else if (pathname === '/api/accounts' && req.method === 'GET') {
       this.handleGetAccounts(req, res);
     } else if (pathname === '/api/accounts' && req.method === 'POST') {
       this.handleAddAccount(req, res);
