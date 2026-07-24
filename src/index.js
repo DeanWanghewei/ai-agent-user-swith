@@ -313,10 +313,22 @@ program
     console.log('  Account data is stored in your user home directory (账号数据存储在用户主目录中)\n');
   });
 
-// Parse arguments
-program.parse(process.argv);
+// Run one-time opt-in upgrade migration before executing the command.
+// maybeRunMigration is a no-op when stdout is not a TTY (piped / non-interactive),
+// and never modifies accounts without explicit user consent.
+const { maybeRunMigration } = require('./migration');
+(async () => {
+  try {
+    await maybeRunMigration();
+  } catch (err) {
+    // Migration must never block normal CLI usage.
+    console.error(chalk.yellow(`⚠ Migration check skipped: ${err.message}`));
+  }
 
-// Show help if no arguments provided
-if (!process.argv.slice(2).length) {
-  program.outputHelp();
-}
+  await program.parseAsync(process.argv);
+
+  // Show help if no arguments provided
+  if (!process.argv.slice(2).length) {
+    program.outputHelp();
+  }
+})();
