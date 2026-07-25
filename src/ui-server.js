@@ -2709,6 +2709,8 @@ class UIServer {
             document.getElementById('envTabBtn').addEventListener('click', function() {
                 switchTab('env');
             });
+            // Preload provider presets so the dropdown is populated for Add and Edit
+            loadProviderPresets();
         });
 
         // Initialize theme
