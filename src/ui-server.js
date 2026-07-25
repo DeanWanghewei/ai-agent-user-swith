@@ -2065,9 +2065,11 @@ class UIServer {
                     <div class="advanced-content" id="advancedContent">
                         <!-- Custom Environment Variables -->
                         <div class="form-group">
-                            <label data-i18n="customEnv">自定义环境变量</label>
+                            <div class="section-header-row">
+                                <label data-i18n="customEnv">自定义环境变量</label>
+                                <button type="button" class="btn btn-secondary btn-small" onclick="addEnvVar()" data-i18n="addVariable">+ 添加变量</button>
+                            </div>
                             <div id="envVarsList"></div>
-                            <button type="button" class="btn btn-secondary btn-small" onclick="addEnvVar()" data-i18n="addVariable">+ 添加变量</button>
                         </div>
                         <!-- Model Configuration -->
                         <div class="form-group">
