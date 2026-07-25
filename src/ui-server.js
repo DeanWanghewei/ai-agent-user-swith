@@ -1590,6 +1590,17 @@ class UIServer {
             grid-column: 1 / -1;
         }
 
+        .section-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .section-header-row label {
+            margin-bottom: 0;
+        }
+
         .form-actions {
             display: flex;
             gap: 10px;
@@ -2060,7 +2071,10 @@ class UIServer {
                         </div>
                         <!-- Model Configuration -->
                         <div class="form-group">
-                            <label data-i18n="modelConfig">模型配置</label>
+                            <div class="section-header-row">
+                                <label data-i18n="modelConfig">模型配置</label>
+                                <button id="addModelGroupBtn" type="button" class="btn btn-secondary btn-small" onclick="addModelGroupUI()" data-i18n="addModelGroup" style="display: none;">+ 添加模型组</button>
+                            </div>
                             <!-- Simple model field for Codex/Droids -->
                             <div id="simpleModelGroup" style="display: none;">
                                 <input type="text" id="simpleModel" data-i18n-placeholder="simpleModelPlaceholder" placeholder="例如: gpt-4, droids-model-v1">
@@ -2087,7 +2101,6 @@ class UIServer {
                             <!-- Model groups for Claude -->
                             <div id="claudeModelGroup" style="display: none;">
                                 <div id="modelGroupsList" style="margin-bottom: 10px;"></div>
-                                <button type="button" class="btn btn-secondary btn-small" onclick="addModelGroupUI()" data-i18n="addModelGroup">+ 添加模型组</button>
                             </div>
                         </div>
                     </div>
@@ -2665,7 +2678,7 @@ class UIServer {
                         el('span', { className: 'active-badge', id: 'activeBadge' + groupId, style: 'display:' + (isActive ? 'inline-block' : 'none') }, ['Active']),
                     ]),
                     el('div', { className: 'model-group-actions' }, [
-                        el('button', { type: 'button', className: 'btn btn-secondary btn-small', onClick: (e) => { e.stopPropagation(); setActiveModelGroup(groupId); } }, [t('setActive')]),
+                        el('button', { type: 'button', id: 'setActiveBtn' + groupId, className: 'btn btn-secondary btn-small', style: isActive ? 'display:none;' : '', onClick: (e) => { e.stopPropagation(); setActiveModelGroup(groupId); } }, [t('setActive')]),
                         el('button', { type: 'button', className: 'btn btn-danger btn-small', onClick: (e) => { e.stopPropagation(); removeModelGroupUI(groupId); } }, ['×']),
                     ]),
                 ]),
@@ -3080,6 +3093,9 @@ class UIServer {
                     resetPresetUI();
                 }
             }
+            // "+ add model group" button only for Claude
+            const addModelGroupBtn = document.getElementById('addModelGroupBtn');
+            if (addModelGroupBtn) addModelGroupBtn.style.display = (accountType === 'Claude') ? '' : 'none';
         }
 
         async function showAddModal() {
@@ -3378,17 +3394,20 @@ class UIServer {
         }
 
         function setActiveModelGroup(id) {
-            // Hide all active badges
+            // Hide all active badges, then show the active one
             document.querySelectorAll('[id^="activeBadge"]').forEach(badge => {
                 badge.style.display = 'none';
             });
-
-            // Show the active badge for this group
             const badge = document.getElementById(\`activeBadge\${id}\`);
-            if (badge) {
-                badge.style.display = 'inline-block';
-                activeModelGroup = id;
-            }
+            if (badge) badge.style.display = 'inline-block';
+            activeModelGroup = id;
+
+            // Show all "set active" buttons, then hide the active group's
+            document.querySelectorAll('[id^="setActiveBtn"]').forEach(btn => {
+                btn.style.display = '';
+            });
+            const activeBtn = document.getElementById(\`setActiveBtn\${id}\`);
+            if (activeBtn) activeBtn.style.display = 'none';
         }
 
         async function saveAccount(event) {
