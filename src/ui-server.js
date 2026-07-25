@@ -1720,8 +1720,16 @@ class UIServer {
             border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 10px 12px;
-            margin-bottom: 10px;
+            margin-bottom: 0;
             background: var(--input-bg);
+            flex: 1 1 280px;
+            min-width: 0;
+        }
+
+        #modelGroupsList {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
         .model-group-header {
@@ -1999,16 +2007,16 @@ class UIServer {
                         <input type="text" id="accountName" required data-i18n-placeholder="accountNamePlaceholder" placeholder="例如: my-claude-account">
                     </div>
                     <div class="form-group">
-                        <label for="apiKey" data-i18n="apiKey">API Key *</label>
-                        <input type="text" id="apiKey" required data-i18n-placeholder="apiKeyPlaceholder" placeholder="sk-ant-api03-...">
+                        <label for="email" data-i18n="email">邮箱 (可选)</label>
+                        <input type="email" id="email" data-i18n-placeholder="emailPlaceholder" placeholder="user@example.com">
                     </div>
                     <div class="form-group">
                         <label for="apiUrl" data-i18n="apiUrl">API URL (可选)</label>
                         <input type="text" id="apiUrl" data-i18n-placeholder="apiUrlPlaceholder" placeholder="https://api.anthropic.com">
                     </div>
                     <div class="form-group">
-                        <label for="email" data-i18n="email">邮箱 (可选)</label>
-                        <input type="email" id="email" data-i18n-placeholder="emailPlaceholder" placeholder="user@example.com">
+                        <label for="apiKey" data-i18n="apiKey">API Key *</label>
+                        <input type="text" id="apiKey" required data-i18n-placeholder="apiKeyPlaceholder" placeholder="sk-ant-api03-...">
                     </div>
                     <div class="form-group form-grid-full">
                         <label for="description" data-i18n="description">描述 (可选)</label>
@@ -2650,7 +2658,7 @@ class UIServer {
 
             return el('div', { className: 'model-group-item', id: 'modelGroup' + groupId }, [
                 el('input', { type: 'hidden', id: 'groupName' + groupId, value: groupName }),
-                el('div', { className: 'model-group-header', onClick: () => toggleModelGroup(groupId) }, [
+                el('div', { className: 'model-group-header', onClick: () => toggleAllModelGroups() }, [
                     el('span', { className: 'mg-chevron' }, ['▶']),
                     el('div', { className: 'model-group-name' }, [
                         document.createTextNode(headerLabel + ' '),
@@ -3362,9 +3370,11 @@ class UIServer {
             }
         }
 
-        function toggleModelGroup(groupId) {
-            const item = document.getElementById('modelGroup' + groupId);
-            if (item) item.classList.toggle('expanded');
+        function toggleAllModelGroups() {
+            const items = document.querySelectorAll('#modelGroupsList .model-group-item');
+            if (items.length === 0) return;
+            const expand = !items[0].classList.contains('expanded');
+            items.forEach(it => it.classList.toggle('expanded', expand));
         }
 
         function setActiveModelGroup(id) {
