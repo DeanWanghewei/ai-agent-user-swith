@@ -3811,7 +3811,7 @@ class UIServer {
             editingEnvLevel = null;
             document.getElementById('envModalTitle').textContent = t('addEnvVarTitle');
             document.getElementById('envForm').reset();
-            document.getElementById('envModal').classList.remove('hidden');
+            document.getElementById('envModal').classList.add('active');
         }
 
         function editEnvVar(key, level) {
@@ -3831,7 +3831,7 @@ class UIServer {
                 document.getElementById('envValue').value = envObj.env[key];
             }
 
-            document.getElementById('envModal').classList.remove('hidden');
+            document.getElementById('envModal').classList.add('active');
         }
 
         async function saveEnvVar(event) {
@@ -3863,7 +3863,7 @@ class UIServer {
         }
 
         function closeEnvModal() {
-            document.getElementById('envModal').classList.add('hidden');
+            document.getElementById('envModal').classList.remove('active');
             document.getElementById('envForm').reset();
             document.getElementById('envModalKey').disabled = false;
             document.getElementById('envLevel').disabled = false;
