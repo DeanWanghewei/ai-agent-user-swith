@@ -1789,16 +1789,8 @@ class UIServer {
 
         .model-group-fields {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: 1fr;
             gap: 8px;
-        }
-
-        .model-group-fields > div:first-child {
-            grid-column: 1 / -1;
-        }
-
-        .group-env-section {
-            grid-column: 1 / -1;
         }
 
         .model-group-fields input {
