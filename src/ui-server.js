@@ -1539,8 +1539,8 @@ class UIServer {
             background: var(--card-bg);
             border-radius: 10px;
             padding: 30px;
-            max-width: 500px;
-            width: 90%;
+            max-width: 760px;
+            width: 92%;
             max-height: 90vh;
             overflow-y: auto;
         }
@@ -1578,6 +1578,16 @@ class UIServer {
         .form-group textarea {
             min-height: 60px;
             resize: vertical;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0 15px;
+        }
+
+        .form-grid-full {
+            grid-column: 1 / -1;
         }
 
         .form-actions {
@@ -1709,8 +1719,8 @@ class UIServer {
         .model-group-item {
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
             background: var(--input-bg);
         }
 
@@ -1718,12 +1728,39 @@ class UIServer {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 0;
+            cursor: pointer;
+            user-select: none;
         }
 
         .model-group-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
             font-weight: 600;
             color: var(--text-primary);
+        }
+
+        .mg-chevron {
+            display: inline-block;
+            width: 12px;
+            flex-shrink: 0;
+            color: var(--text-tertiary);
+            transition: transform 0.15s;
+        }
+
+        .model-group-item.expanded .mg-chevron {
+            transform: rotate(90deg);
+        }
+
+        .model-group-body {
+            display: none;
+            margin-top: 12px;
+        }
+
+        .model-group-item.expanded .model-group-body {
+            display: block;
         }
 
         .model-group-actions {
@@ -1733,7 +1770,16 @@ class UIServer {
 
         .model-group-fields {
             display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 8px;
+        }
+
+        .model-group-fields > div:first-child {
+            grid-column: 1 / -1;
+        }
+
+        .group-env-section {
+            grid-column: 1 / -1;
         }
 
         .model-group-fields input {
@@ -1928,34 +1974,46 @@ class UIServer {
         <div class="modal-content">
             <div class="modal-header" id="modalTitle" data-i18n="addAccountTitle">添加账号</div>
             <form id="accountForm" onsubmit="saveAccount(event)">
-                <div class="form-group">
-                    <label for="providerPreset" data-i18n="provider">提供商 Provider</label>
-                    <select id="providerPreset" onchange="applyPreset()">
-                        <option value="__custom__" data-i18n="customProvider">自定义 Custom</option>
-                    </select>
-                    <small id="presetHint" style="color: #666; display: none; margin-top: 5px;"></small>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="accountType" data-i18n="type">类型 *</label>
+                        <select id="accountType" required onchange="toggleModelFields()">
+                            <option value="Claude">Claude</option>
+                            <option value="Codex">Codex</option>
+                            <option value="CCR">CCR</option>
+                            <option value="Droids">Droids</option>
+                            <option value="Other" data-i18n="other">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="providerGroup">
+                        <label for="providerPreset" data-i18n="provider">提供商 Provider</label>
+                        <select id="providerPreset" onchange="applyPreset()">
+                            <option value="__custom__" data-i18n="customProvider">自定义 Custom</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="accountName" data-i18n="accountName">账号名称 *</label>
-                    <input type="text" id="accountName" required data-i18n-placeholder="accountNamePlaceholder" placeholder="例如: my-claude-account">
-                </div>
-                <div class="form-group">
-                    <label for="accountType" data-i18n="type">类型 *</label>
-                    <select id="accountType" required onchange="toggleModelFields()">
-                        <option value="Claude">Claude</option>
-                        <option value="Codex">Codex</option>
-                        <option value="CCR">CCR</option>
-                        <option value="Droids">Droids</option>
-                        <option value="Other" data-i18n="other">其他</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="apiKey" data-i18n="apiKey">API Key *</label>
-                    <input type="text" id="apiKey" required data-i18n-placeholder="apiKeyPlaceholder" placeholder="sk-ant-api03-...">
-                </div>
-                <div class="form-group">
-                    <label for="apiUrl" data-i18n="apiUrl">API URL (可选)</label>
-                    <input type="text" id="apiUrl" data-i18n-placeholder="apiUrlPlaceholder" placeholder="https://api.anthropic.com">
+                <div id="presetHint" class="preset-hint" style="color: #666; display: none; margin: -4px 0 12px;"></div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="accountName" data-i18n="accountName">账号名称 *</label>
+                        <input type="text" id="accountName" required data-i18n-placeholder="accountNamePlaceholder" placeholder="例如: my-claude-account">
+                    </div>
+                    <div class="form-group">
+                        <label for="apiKey" data-i18n="apiKey">API Key *</label>
+                        <input type="text" id="apiKey" required data-i18n-placeholder="apiKeyPlaceholder" placeholder="sk-ant-api03-...">
+                    </div>
+                    <div class="form-group">
+                        <label for="apiUrl" data-i18n="apiUrl">API URL (可选)</label>
+                        <input type="text" id="apiUrl" data-i18n-placeholder="apiUrlPlaceholder" placeholder="https://api.anthropic.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="email" data-i18n="email">邮箱 (可选)</label>
+                        <input type="email" id="email" data-i18n-placeholder="emailPlaceholder" placeholder="user@example.com">
+                    </div>
+                    <div class="form-group form-grid-full">
+                        <label for="description" data-i18n="description">描述 (可选)</label>
+                        <textarea id="description" data-i18n-placeholder="descriptionPlaceholder" placeholder="用于生产环境的主账号"></textarea>
+                    </div>
                 </div>
                 <!-- Wire API selection for Codex accounts -->
                 <div class="form-group" id="wireApiGroup" style="display: none;">
@@ -1979,14 +2037,6 @@ class UIServer {
                         使用前需要执行: export YOUR_VAR_NAME="your-api-key"<br>
                         变量名必须使用大写字母、数字和下划线
                     </small>
-                </div>
-                <div class="form-group">
-                    <label for="email" data-i18n="email">邮箱 (可选)</label>
-                    <input type="email" id="email" data-i18n-placeholder="emailPlaceholder" placeholder="user@example.com">
-                </div>
-                <div class="form-group">
-                    <label for="description" data-i18n="description">描述 (可选)</label>
-                    <textarea id="description" data-i18n-placeholder="descriptionPlaceholder" placeholder="用于生产环境的主账号"></textarea>
                 </div>
                 <div class="form-group">
                     <div class="advanced-toggle" onclick="toggleAdvancedSettings()">
@@ -2596,19 +2646,22 @@ class UIServer {
                 el('button', { type: 'button', className: 'btn btn-secondary btn-small', onClick: () => addGroupEnvVarUI(groupId) }, [t('addGroupParam')]),
             ]));
 
+            const body = el('div', { className: 'model-group-body' }, [fieldsDiv]);
+
             return el('div', { className: 'model-group-item', id: 'modelGroup' + groupId }, [
                 el('input', { type: 'hidden', id: 'groupName' + groupId, value: groupName }),
-                el('div', { className: 'model-group-header' }, [
+                el('div', { className: 'model-group-header', onClick: () => toggleModelGroup(groupId) }, [
+                    el('span', { className: 'mg-chevron' }, ['▶']),
                     el('div', { className: 'model-group-name' }, [
                         document.createTextNode(headerLabel + ' '),
                         el('span', { className: 'active-badge', id: 'activeBadge' + groupId, style: 'display:' + (isActive ? 'inline-block' : 'none') }, ['Active']),
                     ]),
                     el('div', { className: 'model-group-actions' }, [
-                        el('button', { type: 'button', className: 'btn btn-secondary btn-small', onClick: () => setActiveModelGroup(groupId) }, [t('setActive')]),
-                        el('button', { type: 'button', className: 'btn btn-danger btn-small', onClick: () => removeModelGroupUI(groupId) }, ['×']),
+                        el('button', { type: 'button', className: 'btn btn-secondary btn-small', onClick: (e) => { e.stopPropagation(); setActiveModelGroup(groupId); } }, [t('setActive')]),
+                        el('button', { type: 'button', className: 'btn btn-danger btn-small', onClick: (e) => { e.stopPropagation(); removeModelGroupUI(groupId); } }, ['×']),
                     ]),
                 ]),
-                fieldsDiv,
+                body,
             ]);
         }
         let activeModelGroup = null;
@@ -3006,6 +3059,17 @@ class UIServer {
                 claudeModelGroup.style.display = 'block';
                 if (ccrModelGroup) ccrModelGroup.style.display = 'none';
             }
+
+            // Provider presets only apply to Claude; hide + reset otherwise
+            const providerGroup = document.getElementById('providerGroup');
+            if (providerGroup) {
+                if (accountType === 'Claude') {
+                    providerGroup.style.display = '';
+                } else {
+                    providerGroup.style.display = 'none';
+                    resetPresetUI();
+                }
+            }
         }
 
         async function showAddModal() {
@@ -3294,6 +3358,11 @@ class UIServer {
                     }
                 }
             }
+        }
+
+        function toggleModelGroup(groupId) {
+            const item = document.getElementById('modelGroup' + groupId);
+            if (item) item.classList.toggle('expanded');
         }
 
         function setActiveModelGroup(id) {
