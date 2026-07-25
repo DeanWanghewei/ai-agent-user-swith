@@ -2578,7 +2578,8 @@ class UIServer {
             ['groupAnthropicModel', null, 'ANTHROPIC_MODEL', 'claude-sonnet-4-5-20250929'],
         ];
 
-        function buildModelGroupItem(groupId, groupName, cfg, isActive) {
+        function buildModelGroupItem(groupId, groupName, cfg, isActive, displayLabel) {
+            const headerLabel = displayLabel || groupName;
             const fieldsDiv = el('div', { className: 'model-group-fields' });
             MODEL_GROUP_FIELDS.forEach(([idSuffix, i18nKey, key, ph]) => {
                 const label = i18nKey ? t(i18nKey) : key;
@@ -2599,7 +2600,7 @@ class UIServer {
                 el('input', { type: 'hidden', id: 'groupName' + groupId, value: groupName }),
                 el('div', { className: 'model-group-header' }, [
                     el('div', { className: 'model-group-name' }, [
-                        document.createTextNode(groupName + ' '),
+                        document.createTextNode(headerLabel + ' '),
                         el('span', { className: 'active-badge', id: 'activeBadge' + groupId, style: 'display:' + (isActive ? 'inline-block' : 'none') }, ['Active']),
                     ]),
                     el('div', { className: 'model-group-actions' }, [
@@ -3236,7 +3237,7 @@ class UIServer {
             ['latest', 'balanced'].forEach(gk => {
                 const def = preset.modelGroups[gk];
                 if (!def) return;
-                const id = addModelGroupUI(def.label || gk, def.config || {});
+                const id = addModelGroupUI(gk, def.config || {}, def.label);
                 if (gk === (preset.defaultActiveGroup || 'latest') && id != null) setActiveModelGroup(id);
             });
             document.getElementById('advancedContent').classList.add('expanded');
@@ -3255,7 +3256,7 @@ class UIServer {
             if (typeEl) typeEl.disabled = false;
         }
 
-        function addModelGroupUI(groupNameArg, configArg) {
+        function addModelGroupUI(groupNameArg, configArg, displayLabelArg) {
             const groupName = groupNameArg != null ? groupNameArg : prompt(t('modelGroupName') + ':');
             if (!groupName || !groupName.trim()) return null;
 
@@ -3265,7 +3266,7 @@ class UIServer {
             if (isFirst) activeModelGroup = groupId;
 
             const cfg = configArg || {};
-            const div = buildModelGroupItem(groupId, groupName, cfg, isFirst);
+            const div = buildModelGroupItem(groupId, groupName, cfg, isFirst, displayLabelArg);
             container.appendChild(div);
 
             // Render group-level (special) env rows preset in cfg
