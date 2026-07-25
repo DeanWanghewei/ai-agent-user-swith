@@ -2189,8 +2189,8 @@ class UIServer {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="envKey" data-i18n="envKey">变量名 *</label>
-                    <input type="text" id="envKey" required data-i18n-placeholder="envKeyPlaceholder" placeholder="例如: MY_CUSTOM_VAR" pattern="^[A-Z_][A-Z0-9_]*$">
+                    <label for="envModalKey" data-i18n="envKey">变量名 *</label>
+                    <input type="text" id="envModalKey" required data-i18n-placeholder="envKeyPlaceholder" placeholder="例如: MY_CUSTOM_VAR" pattern="^[A-Z_][A-Z0-9_]*$">
                 </div>
                 <div class="form-group">
                     <label for="envValue" data-i18n="envValue">变量值 *</label>
@@ -2261,10 +2261,19 @@ class UIServer {
             font-size: 1.1rem;
             font-weight: 600;
             color: var(--text-primary);
-            max-width: 200px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            word-break: break-all;
+            white-space: normal;
+        }
+
+        .env-badge-effect {
+            background: rgba(34, 197, 94, 0.18);
+            color: #22c55e;
+        }
+
+        .env-badge-overridden {
+            background: rgba(128, 128, 128, 0.18);
+            color: var(--text-tertiary);
+            text-decoration: line-through;
         }
 
         .env-badge {
@@ -2486,6 +2495,8 @@ class UIServer {
                 userEnvConfig: '用户环境变量',
                 // Display labels (without *)
                 envValueLabel: '变量值',
+                envInEffect: '生效中',
+                envOverridden: '被项目级覆盖',
                 envLevelLabel: '级别'
             },
             en: {
@@ -2611,6 +2622,8 @@ class UIServer {
                 userEnvConfig: 'User Environment Variables',
                 // Display labels (without *)
                 envValueLabel: 'Variable Value',
+                envInEffect: 'In effect',
+                envOverridden: 'Overridden by project',
                 envLevelLabel: 'Level'
             }
         };
@@ -3725,17 +3738,13 @@ class UIServer {
             const levelFilter = filter ? filter.value : 'all';
 
             let allEnvVars = [];
+            const projectKeys = new Set(Object.keys((envData.project && envData.project.env) || {}));
 
             // Collect environment variables based on filter
             if (levelFilter === 'all' || levelFilter === 'project') {
                 if (envData.project && envData.project.env) {
                     Object.entries(envData.project.env).forEach(([key, value]) => {
-                        allEnvVars.push({
-                            key,
-                            value,
-                            level: 'project',
-                            configPath: envData.project.configPath
-                        });
+                        allEnvVars.push({ key, value, level: 'project', configPath: envData.project.configPath, overridden: false });
                     });
                 }
             }
@@ -3743,12 +3752,7 @@ class UIServer {
             if (levelFilter === 'all' || levelFilter === 'user') {
                 if (envData.user && envData.user.env) {
                     Object.entries(envData.user.env).forEach(([key, value]) => {
-                        allEnvVars.push({
-                            key,
-                            value,
-                            level: 'user',
-                            configPath: envData.user.configPath
-                        });
+                        allEnvVars.push({ key, value, level: 'user', configPath: envData.user.configPath, overridden: projectKeys.has(key) });
                     });
                 }
             }
@@ -3772,10 +3776,13 @@ class UIServer {
                 <div class="env-section">
                     <div class="env-section-header">
                         <div class="env-section-title">
-                            <h3 title="\${envVar.key}">\${envVar.key}</h3>
+                            <h3>\${envVar.key}</h3>
                             <span class="env-badge \${envVar.level === 'project' ? 'env-badge-project' : 'env-badge-user'}">
                                 \${envVar.level === 'project' ? t('projectEnvConfig') : t('userEnvConfig')}
                             </span>
+                            \${envVar.overridden
+                                ? \`<span class="env-badge env-badge-overridden">\${t('envOverridden')}</span>\`
+                                : \`<span class="env-badge env-badge-effect">\${t('envInEffect')}</span>\`}
                         </div>
                         <div class="env-actions">
                             <button class="btn-icon" onclick="editEnvVar('\${envVar.key}', '\${envVar.level}')" title="\${t('edit')}">
@@ -3792,12 +3799,8 @@ class UIServer {
                         </div>
                     </div>
                     <div class="env-section-body">
-                        <div class="info-label">\${t('envValueLabel')}</div>
-                        <div class="info-value">\${envVar.maskedValue}</div>
-                        <div class="info-label" style="margin-top: 8px;">\${t('envLevelLabel')}</div>
-                        <div class="info-value">\${envVar.level === 'project' ? t('projectEnvConfig') : t('userEnvConfig')}</div>
-                        <div class="info-label" style="margin-top: 8px;">Config</div>
-                        <div class="info-value small">\${envVar.configPath}</div>
+                        <div class="info-value" style="font-family: monospace; word-break: break-all;">\${envVar.maskedValue}</div>
+                        <div class="info-value small" style="margin-top: 6px; color: var(--text-tertiary); word-break: break-all;">\${envVar.configPath}</div>
                     </div>
                 </div>
             \`).join('');
@@ -3817,8 +3820,8 @@ class UIServer {
             document.getElementById('envModalTitle').textContent = t('editEnvVarTitle');
 
             // Set form values
-            document.getElementById('envKey').value = key;
-            document.getElementById('envKey').disabled = true; // Can't change key when editing
+            document.getElementById('envModalKey').value = key;
+            document.getElementById('envModalKey').disabled = true; // Can't change key when editing
             document.getElementById('envLevel').value = level;
             document.getElementById('envLevel').disabled = true; // Can't change level when editing
 
@@ -3834,7 +3837,7 @@ class UIServer {
         async function saveEnvVar(event) {
             event.preventDefault();
 
-            const key = document.getElementById('envKey').value.trim();
+            const key = document.getElementById('envModalKey').value.trim();
             const value = document.getElementById('envValue').value.trim();
             const level = document.getElementById('envLevel').value;
 
@@ -3862,7 +3865,7 @@ class UIServer {
         function closeEnvModal() {
             document.getElementById('envModal').classList.add('hidden');
             document.getElementById('envForm').reset();
-            document.getElementById('envKey').disabled = false;
+            document.getElementById('envModalKey').disabled = false;
             document.getElementById('envLevel').disabled = false;
             editingEnvVar = null;
             editingEnvLevel = null;
