@@ -1,8 +1,7 @@
 {
   "_doc": "AIS 远程预设 registry。新模型发布(如 GLM-5.3)时:若该提供商配置了 discovery(有 modelsUrl),通常无需改本文件——客户端会用用户自己的 API Key 实时从提供商 /v1/models 解析最新旗舰模型;只需同步更新对应 discovery.fallback 为新的兜底值。无 discovery 的提供商(如 qwen)直接改模型组里的具体模型名。改完提交到 main 分支即可,用户端 24 小时内自动生效,无需发 npm 包。字段含义与 src/presets.js 内置预设完全一致(内置数据是不可达时的兜底);占位符 $latest/$haiku 由运行时解析。",
   "version": 1,
-  "updated": "2026-08-14",
-  "presets": [
+  "updated": "2026-08-14",  "presets": [
     {
       "key": "glm",
       "name": "GLM 智谱",
@@ -18,9 +17,9 @@
       "discovery": {
         "modelsUrl": "https://open.bigmodel.cn/api/anthropic/v1/models",
         "auth": "bearer",
-        "fallback": { "latest": "glm-5.2[1m]", "haiku": "glm-5" },
+        "fallback": { "latest": "glm-5.3", "haiku": "glm-5.2" },
         "pick": {
-          "latest": { "match": "^glm-[0-9.]+$", "decorate": "[1m]" },
+          "latest": { "match": "^glm-[0-9.]+$" },
           "haiku":  { "match": "^glm-[0-9.]+$", "previous": true }
         }
       }

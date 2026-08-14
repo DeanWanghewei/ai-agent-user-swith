@@ -35,9 +35,9 @@ const BUILTIN_PRESETS = [
     discovery: {
       modelsUrl: 'https://open.bigmodel.cn/api/anthropic/v1/models',
       auth: 'bearer',
-      fallback: { latest: 'glm-5.2[1m]', haiku: 'glm-5' },
+      fallback: { latest: 'glm-5.3', haiku: 'glm-5.2' },
       pick: {
-        latest: { match: '^glm-[0-9.]+$', decorate: '[1m]' },
+        latest: { match: '^glm-[0-9.]+$' },
         haiku:  { match: '^glm-[0-9.]+$', previous: true }
       }
     }

@@ -31,8 +31,8 @@ assert.strictEqual(PRESETS.find(p => p.key === 'qwen').modelGroups.latest.config
 // Materialized presets resolve placeholders from discovery.fallback — no leaks.
 const glm = findPreset('glm');
 assert.strictEqual(glm.modelGroups.latest.config.CLAUDE_CODE_AUTO_COMPACT_WINDOW, '1000000');
-assert.strictEqual(glm.modelGroups.latest.config.DEFAULT_MODEL, 'glm-5.2[1m]');
-assert.strictEqual(glm.modelGroups.balanced.config.ANTHROPIC_DEFAULT_HAIKU_MODEL, 'glm-5');
+assert.strictEqual(glm.modelGroups.latest.config.DEFAULT_MODEL, 'glm-5.3');
+assert.strictEqual(glm.modelGroups.balanced.config.ANTHROPIC_DEFAULT_HAIKU_MODEL, 'glm-5.2');
 assert.strictEqual(findRawPreset('glm').modelGroups.latest.config.DEFAULT_MODEL, '$latest', 'raw preset keeps placeholders');
 for (const p of ['minimax', 'qwen', 'kimi']) {
   const cfg = findPreset(p).modelGroups.latest.config;

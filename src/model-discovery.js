@@ -115,6 +115,19 @@ async function resolvePresetModels(preset, apiKey, options = {}) {
       }
     });
     if (!resolvedAny) return useFallback('no-rule-match');
+    // The registry fallback can know a NEWER model than the provider's list
+    // exposes (e.g. announced but not yet listed, or list lags behind). Take
+    // the newer of the two per name; when the provider list is ahead, live
+    // wins. Also fill names that only the fallback defines.
+    Object.keys(fallback).forEach((name) => {
+      const fb = fallback[name];
+      if (typeof fb !== 'string') return;
+      if (values[name] === undefined) {
+        values[name] = fb;
+      } else if (compareVersionTuples(versionTuple(fb), versionTuple(values[name])) < 0) {
+        values[name] = fb;
+      }
+    });
     return { values, source: 'live', modelCount: models.length };
   } catch (err) {
     return useFallback(err && err.message ? String(err.message) : 'fetch-failed');

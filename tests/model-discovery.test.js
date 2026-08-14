@@ -80,6 +80,25 @@ const okFetch = (payload) => async (url, opts) => {
   assert.strictEqual(live.values.latest, 'glm-5.3[1m]');
   assert.strictEqual(live.values.haiku, 'glm-5.2');
 
+  // registry fallback ahead of the provider list → newer fallback wins
+  const registryAhead = await resolvePresetModels(
+    { discovery: { ...preset.discovery, fallback: { latest: 'glm-9.9[1m]', haiku: 'glm-5.2' } } },
+    'sk-test',
+    { fetchImpl: okFetch({ data: [{ id: 'glm-5.3' }, { id: 'glm-5.2' }] }) }
+  );
+  assert.strictEqual(registryAhead.source, 'live');
+  assert.strictEqual(registryAhead.values.latest, 'glm-9.9[1m]', 'registry knows a newer flagship');
+  assert.strictEqual(registryAhead.values.haiku, 'glm-5.2');
+
+  // provider list ahead of the registry → live wins
+  const providerAhead = await resolvePresetModels(
+    { discovery: { ...preset.discovery, fallback: { latest: 'glm-4.6[1m]', haiku: 'glm-4.5' } } },
+    'sk-test',
+    { fetchImpl: okFetch({ data: [{ id: 'glm-5.2' }, { id: 'glm-5.1' }] }) }
+  );
+  assert.strictEqual(providerAhead.values.latest, 'glm-5.2[1m]', 'live list knows a newer flagship');
+  assert.strictEqual(providerAhead.values.haiku, 'glm-5.1');
+
   const down = await resolvePresetModels(preset, 'sk', {
     fetchImpl: async () => { throw new Error('network down'); },
   });

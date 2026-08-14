@@ -200,7 +200,7 @@ The first step of `ais add` lets you pick a built-in **Claude-protocol (Anthropi
 
 | Provider | Base URL | Recommended model (auto-latest) |
 |---|---|---|
-| GLM (Zhipu) | `https://open.bigmodel.cn/api/anthropic` | e.g. `glm-5.2[1m]` |
+| GLM (Zhipu) | `https://open.bigmodel.cn/api/anthropic` | e.g. `glm-5.3` |
 | MiniMax | `https://api.minimax.io/anthropic` | e.g. `MiniMax-M2.7` |
 | Qwen (Alibaba) | `https://dashscope.aliyuncs.com/apps/anthropic` | e.g. `qwen3-coder-plus` |
 | Kimi (Moonshot) | `https://api.moonshot.ai/anthropic` | e.g. `kimi-k3` |

@@ -240,7 +240,7 @@ ais rm
 
 | Provider | Base URL | 推荐模型(自动获取最新) |
 |---|---|---|
-| GLM 智谱 | `https://open.bigmodel.cn/api/anthropic` | 如 `glm-5.2[1m]` |
+| GLM 智谱 | `https://open.bigmodel.cn/api/anthropic` | 如 `glm-5.3` |
 | MiniMax | `https://api.minimax.io/anthropic` | 如 `MiniMax-M2.7` |
 | 通义千问 Qwen | `https://dashscope.aliyuncs.com/apps/anthropic` | 如 `qwen3-coder-plus` |
 | Kimi (Moonshot) | `https://api.moonshot.ai/anthropic` | 如 `kimi-k3` |
