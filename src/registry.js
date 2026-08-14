@@ -19,10 +19,14 @@ const path = require('path');
 const os = require('os');
 const { CONFIG_FILES } = require('./constants');
 
-// jsDelivr mirrors GitHub raw and is usually reachable where raw.githubusercontent.com is not.
+// Source order: raw GitHub tracks the main branch directly (freshest — a
+// registry commit reaches users within the TTL without any release); the
+// jsDelivr npm mirror tracks npm dist-tag @latest (lags until a release, but
+// is reachable where raw.githubusercontent.com is blocked, e.g. mainland
+// China). Note: jsDelivr's /gh/ endpoint no longer accepts branch refs.
 const DEFAULT_REGISTRY_URLS = [
-  'https://cdn.jsdelivr.net/gh/DeanWanghewei/ai-agent-user-swith@main/presets.registry.json',
   'https://raw.githubusercontent.com/DeanWanghewei/ai-agent-user-swith/main/presets.registry.json',
+  'https://cdn.jsdelivr.net/npm/ai-account-switch@latest/presets.registry.json',
 ];
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000; // refresh at most once per day
 const DEFAULT_TIMEOUT_MS = 3000; // never make the user wait on a slow registry

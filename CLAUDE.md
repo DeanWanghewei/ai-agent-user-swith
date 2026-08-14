@@ -59,7 +59,7 @@ npm link
 
 **Provider 预设与模型自动更新（`src/presets.js` / `src/registry.js` / `src/model-discovery.js`）**
 - `presets.js` - 内置 Claude 协议预设（GLM/MiniMax/Qwen/Kimi），模型名用 `$latest`/`$haiku` 占位符；`getPresets()` 返回物化后的具体模型名
-- `registry.js` - 远程预设 registry 客户端：拉取仓库根目录 `presets.registry.json`（jsDelivr + GitHub raw 双 CDN），缓存到 `~/.ai-account-switch/presets.cache.json`（24h TTL）。**硬性要求：网络不可达时静默回退缓存/内置数据，绝不阻塞或报错**
+- `registry.js` - 远程预设 registry 客户端：拉取仓库根目录 `presets.registry.json`（GitHub raw 主源，国内回退 jsDelivr npm 镜像；注意 jsDelivr /gh/ 端点已不支持分支名），缓存到 `~/.ai-account-switch/presets.cache.json`（24h TTL + 失败退避）。**硬性要求：网络不可达时静默回退缓存/内置数据，绝不阻塞或报错**
 - `model-discovery.js` - 用账号 API Key 实时拉取提供商 `/v1/models`，按旗舰挑选规则（版本号降序 + 正则过滤）解析占位符；失败回退 `discovery.fallback` 静态值
 - 新模型发布（如 GLM-5.3）的维护方式：有 discovery 的提供商通常**零改动**（客户端实时解析）；仅需同步更新 `presets.registry.json` 的 fallback 值并提交到 main，用户 24h 内自动生效，无需发 npm 包
 

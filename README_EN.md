@@ -226,7 +226,7 @@ ais add
 When a provider releases a new model (e.g. GLM-5.3) you do **not** need to wait for an ais release — two layers keep you current:
 
 1. **Live discovery**: right after you enter an API Key in `ais add`, and whenever you run `ais model refresh`, ais queries the provider's model list (`/v1/models`) with your key and resolves the latest flagship automatically (GLM / MiniMax / Kimi; Qwen has no such endpoint and uses recommended values)
-2. **Remote registry**: recommended values come from [`presets.registry.json`](./presets.registry.json) at the repo root (cached locally for 24h, jsDelivr + GitHub raw fallback). The maintainer updates that single JSON and every user picks it up within a day — no npm release required
+2. **Remote registry**: recommended values come from [`presets.registry.json`](./presets.registry.json) at the repo root (cached locally for 24h; GitHub raw first, with a jsDelivr npm mirror fallback for networks where GitHub is blocked). The maintainer updates that single JSON and users pick it up within a day — no npm release required
 
 **When the network is unreachable, ais silently falls back** to the local cache / values bundled with the package — no errors, no blocking. You can always edit model groups manually (`ais model add` / Web UI).
 

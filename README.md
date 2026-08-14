@@ -266,7 +266,7 @@ ais add
 新模型发布(如 GLM-5.3)**不需要等本工具发版**,两层机制自动跟进:
 
 1. **实时发现**:`ais add` 输入 API Key 后、`ais model refresh` 执行时,会用你的 Key 直接向提供商查询模型列表(`/v1/models`),自动解析出最新旗舰模型(GLM / MiniMax / Kimi;Qwen 无此接口,使用推荐值)
-2. **远程 registry**:预设推荐值来自仓库根目录的 [`presets.registry.json`](./presets.registry.json)(本地缓存 24 小时,jsDelivr + GitHub raw 双源回退)。维护者更新这一个 JSON 提交到 main 即可,所有用户一天内自动拿到
+2. **远程 registry**:预设推荐值来自仓库根目录的 [`presets.registry.json`](./presets.registry.json)(本地缓存 24 小时;GitHub raw 优先,国内网络自动回退 jsDelivr npm 镜像)。维护者更新这一个 JSON 提交到 main 即可,所有用户一天内自动拿到
 
 **网络不可达时静默回退**到本地缓存 / 包内置推荐值,不弹错、不阻塞 —— 你随时可以手动改模型组(`ais model add` / Web UI)。
 
