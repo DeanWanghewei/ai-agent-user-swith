@@ -238,17 +238,17 @@ ais rm
 
 `ais add` 第一步可选择内置的 **Claude 协议(Anthropic 兼容)预设**,只需填写 API Key 并确认/修改 Base URL 即可快速创建配置合理的 Claude 账号:
 
-| Provider | Base URL | 最新模型 |
+| Provider | Base URL | 推荐模型(自动获取最新) |
 |---|---|---|
-| GLM 智谱 | `https://open.bigmodel.cn/api/anthropic` | `glm-5.2[1m]` |
-| MiniMax | `https://api.minimax.io/anthropic` | `MiniMax-M2.7` |
-| 通义千问 Qwen | `https://dashscope.aliyuncs.com/apps/anthropic` | `qwen3-coder-plus` |
-| Kimi (Moonshot) | `https://api.moonshot.ai/anthropic` | `kimi-k3` |
+| GLM 智谱 | `https://open.bigmodel.cn/api/anthropic` | 如 `glm-5.2[1m]` |
+| MiniMax | `https://api.minimax.io/anthropic` | 如 `MiniMax-M2.7` |
+| 通义千问 Qwen | `https://dashscope.aliyuncs.com/apps/anthropic` | 如 `qwen3-coder-plus` |
+| Kimi (Moonshot) | `https://api.moonshot.ai/anthropic` | 如 `kimi-k3` |
 
 ```bash
 ais add
 # 选择提供商 → GLM 智谱(或 MiniMax / 通义千问 / Kimi / 自定义)
-# 填写 API Key → 确认或修改 Base URL → 选择活动模型组
+# 填写 API Key → 自动获取该提供商最新旗舰模型 → 确认或修改 Base URL → 选择活动模型组
 ```
 
 - **Provider 级环境变量**(所有预设统一):`CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1`
@@ -260,6 +260,25 @@ ais add
 > 环境变量分层:provider 级写入账号 `customEnv`;模型组级写入模型组配置(`GROUP_ENV_KEYS`),生成器**保留式**处理(只覆盖模型组定义的键,绝不删除用户手动设置的值)。
 >
 > 升级迁移:首次运行新版本时(交互式终端)会一次性提示是否为旧 Claude 账号补充推荐配置,非破坏、默认不改、仅在 TTY 下触发。
+
+#### 模型自动更新(无需升级工具)
+
+新模型发布(如 GLM-5.3)**不需要等本工具发版**,两层机制自动跟进:
+
+1. **实时发现**:`ais add` 输入 API Key 后、`ais model refresh` 执行时,会用你的 Key 直接向提供商查询模型列表(`/v1/models`),自动解析出最新旗舰模型(GLM / MiniMax / Kimi;Qwen 无此接口,使用推荐值)
+2. **远程 registry**:预设推荐值来自仓库根目录的 [`presets.registry.json`](./presets.registry.json)(本地缓存 24 小时,jsDelivr + GitHub raw 双源回退)。维护者更新这一个 JSON 提交到 main 即可,所有用户一天内自动拿到
+
+**网络不可达时静默回退**到本地缓存 / 包内置推荐值,不弹错、不阻塞 —— 你随时可以手动改模型组(`ais model add` / Web UI)。
+
+已有账号升级到最新模型:
+
+```bash
+ais model refresh           # 当前项目账号:实时查询最新模型,diff 预览,确认后应用并重新生成配置
+ais model refresh <账号名>   # 指定账号
+ais model refresh --yes     # 跳过确认(脚本场景)
+```
+
+高级:环境变量 `AIS_PRESETS_REGISTRY_URL` 可自定义 registry 地址(逗号分隔多个,便于内网镜像),设为 `off` 完全禁用联网。
 
 ### 高级用法
 

@@ -198,17 +198,17 @@ ais rm
 
 The first step of `ais add` lets you pick a built-in **Claude-protocol (Anthropic-compatible) preset** — just enter the API Key and confirm/edit the Base URL to quickly create a well-configured Claude account:
 
-| Provider | Base URL | Latest model |
+| Provider | Base URL | Recommended model (auto-latest) |
 |---|---|---|
-| GLM (Zhipu) | `https://open.bigmodel.cn/api/anthropic` | `glm-5.2[1m]` |
-| MiniMax | `https://api.minimax.io/anthropic` | `MiniMax-M2.7` |
-| Qwen (Alibaba) | `https://dashscope.aliyuncs.com/apps/anthropic` | `qwen3-coder-plus` |
-| Kimi (Moonshot) | `https://api.moonshot.ai/anthropic` | `kimi-k3` |
+| GLM (Zhipu) | `https://open.bigmodel.cn/api/anthropic` | e.g. `glm-5.2[1m]` |
+| MiniMax | `https://api.minimax.io/anthropic` | e.g. `MiniMax-M2.7` |
+| Qwen (Alibaba) | `https://dashscope.aliyuncs.com/apps/anthropic` | e.g. `qwen3-coder-plus` |
+| Kimi (Moonshot) | `https://api.moonshot.ai/anthropic` | e.g. `kimi-k3` |
 
 ```bash
 ais add
 # Select provider → GLM (or MiniMax / Qwen / Kimi / Custom)
-# Enter API Key → confirm or edit Base URL → choose active model group
+# Enter API Key → latest flagship models are fetched automatically → confirm or edit Base URL → choose active model group
 ```
 
 - **Provider-level env** (all presets): `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1`
@@ -220,6 +220,25 @@ ais add
 > Env layering: provider-level vars go into the account's `customEnv`; model-group-level vars go into the model-group config (`GROUP_ENV_KEYS`) and are applied **preserve-only** (only keys the group defines are set; user-set values are never removed).
 >
 > Upgrade migration: on the first run of a new version (interactive TTY only), you're prompted once to retrofit recommended config onto existing Claude accounts — non-destructive, opt-in, never silent.
+
+#### Automatic model updates (no tool upgrade needed)
+
+When a provider releases a new model (e.g. GLM-5.3) you do **not** need to wait for an ais release — two layers keep you current:
+
+1. **Live discovery**: right after you enter an API Key in `ais add`, and whenever you run `ais model refresh`, ais queries the provider's model list (`/v1/models`) with your key and resolves the latest flagship automatically (GLM / MiniMax / Kimi; Qwen has no such endpoint and uses recommended values)
+2. **Remote registry**: recommended values come from [`presets.registry.json`](./presets.registry.json) at the repo root (cached locally for 24h, jsDelivr + GitHub raw fallback). The maintainer updates that single JSON and every user picks it up within a day — no npm release required
+
+**When the network is unreachable, ais silently falls back** to the local cache / values bundled with the package — no errors, no blocking. You can always edit model groups manually (`ais model add` / Web UI).
+
+Upgrade an existing account to the latest models:
+
+```bash
+ais model refresh           # current project account: fetch latest models, preview diff, apply on confirm
+ais model refresh <name>    # a specific account
+ais model refresh --yes     # skip confirmation (for scripts)
+```
+
+Advanced: the `AIS_PRESETS_REGISTRY_URL` env var points ais at a custom registry (comma-separate several, e.g. an internal mirror); set it to `off` to disable all network access.
 
 ### Advanced Usage
 

@@ -11,10 +11,14 @@ const config = new ConfigManager();
  * Add a new account
  */
 async function addAccount(name, options) {
-    // Provider selection: built-in Claude-protocol presets or Custom (all types)
-    const { PRESETS, findPreset } = require("../presets");
+    // Provider selection: built-in Claude-protocol presets or Custom (all types).
+    // Best-effort remote registry refresh first; unreachable registry silently
+    // falls back to the built-in presets.
+    const { getPresets, ensureFreshPresets } = require("../presets");
+    await ensureFreshPresets();
+    const presets = getPresets();
     const providerChoices = [
-        ...PRESETS.map((p) => ({
+        ...presets.map((p) => ({
             name: `${p.name}  ${chalk.gray(p.apiUrl)}`,
             value: p.key,
         })),
@@ -30,7 +34,7 @@ async function addAccount(name, options) {
     ]);
 
     if (provider !== "__custom__") {
-        return addAccountFromPreset(findPreset(provider), name);
+        return addAccountFromPreset(provider, name);
     }
 
     // If name not provided, prompt for it
@@ -1225,12 +1229,19 @@ function exportAccount(nameOrId) {
 /**
  * Create a Claude account from a built-in preset.
  * Asks only for API Key + confirmable Base URL + active model group.
+ * @param {string} presetKey preset key (e.g. 'glm'); model names are resolved
+ *   live from the provider once the API key is known, falling back to
+ *   registry/built-in recommendations when the provider is unreachable.
  */
-async function addAccountFromPreset(preset, name) {
-    if (!preset) {
+async function addAccountFromPreset(presetKey, name) {
+    const { findRawPreset } = require("../presets");
+    const { resolvePresetModels, materializeGroups } = require("../model-discovery");
+    const raw = findRawPreset(presetKey);
+    if (!raw) {
         console.error(chalk.red("✗ Unknown preset (未知预设)。"));
         return;
     }
+    const preset = { ...raw, modelGroups: materializeGroups(raw) };
     const labels = {
         latest: preset.modelGroups.latest.label,
         balanced: preset.modelGroups.balanced.label,
@@ -1279,13 +1290,23 @@ async function addAccountFromPreset(preset, name) {
         { type: "password", name: "apiKey", message: "Enter API Key (请输入 API Key):", mask: "*", validate: (input) => input.trim() !== "" || "API Key is required (API Key 不能为空)" },
     ]);
 
+    // Resolve $latest/$haiku placeholders with the key just entered — live from
+    // the provider when reachable (best-effort, never blocks on failure).
+    const { values, source } = await resolvePresetModels(raw, apiKey.trim());
+    const resolvedGroups = materializeGroups(raw, values);
+    if (source === "live") {
+        console.log(chalk.green(`✓ 已实时获取最新模型 (live models): ${Object.entries(values).map(([k, v]) => `${k}=${v}`).join(", ")}`));
+    } else {
+        console.log(chalk.gray(`ℹ 未实时获取模型列表,使用推荐值;之后可用 "ais model refresh" 更新。`));
+    }
+
     const { apiUrl } = await inquirer.prompt([
         { type: "input", name: "apiUrl", message: "Base URL — press Enter to confirm, or edit (直接回车确认,或修改):", default: preset.apiUrl, validate: (input) => input.trim() !== "" || "Base URL is required (Base URL 不能为空)" },
     ]);
 
     const modelGroups = {
-        latest: { ...preset.modelGroups.latest.config },
-        balanced: { ...preset.modelGroups.balanced.config },
+        latest: { ...resolvedGroups.latest.config },
+        balanced: { ...resolvedGroups.balanced.config },
     };
     const { active } = await inquirer.prompt([
         {

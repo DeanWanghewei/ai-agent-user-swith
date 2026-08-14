@@ -20,7 +20,8 @@ const {
   addModelGroup,
   useModelGroup,
   removeModelGroup,
-  showModelGroup
+  showModelGroup,
+  refreshModelGroups
 } = require('./model');
 
 const {
@@ -69,6 +70,7 @@ module.exports = {
   useModelGroup,
   removeModelGroup,
   showModelGroup,
+  refreshModelGroups,
 
   // Utility commands
   showPaths,

@@ -1,0 +1,85 @@
+{
+  "_doc": "AIS 远程预设 registry。新模型发布(如 GLM-5.3)时:若该提供商配置了 discovery(有 modelsUrl),通常无需改本文件——客户端会用用户自己的 API Key 实时从提供商 /v1/models 解析最新旗舰模型;只需同步更新对应 discovery.fallback 为新的兜底值。无 discovery 的提供商(如 qwen)直接改模型组里的具体模型名。改完提交到 main 分支即可,用户端 24 小时内自动生效,无需发 npm 包。字段含义与 src/presets.js 内置预设完全一致(内置数据是不可达时的兜底);占位符 $latest/$haiku 由运行时解析。",
+  "version": 1,
+  "updated": "2026-08-14",
+  "presets": [
+    {
+      "key": "glm",
+      "name": "GLM 智谱",
+      "type": "Claude",
+      "apiUrl": "https://open.bigmodel.cn/api/anthropic",
+      "description": "智谱 GLM (Anthropic 协议兼容)",
+      "customEnv": { "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1" },
+      "modelGroups": {
+        "latest":   { "label": "全部最新模型", "config": { "DEFAULT_MODEL": "$latest", "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "1000000", "ENABLE_TOOL_SEARCH": "0" } },
+        "balanced": { "label": "合理均衡配置", "config": { "DEFAULT_MODEL": "$latest", "ANTHROPIC_DEFAULT_HAIKU_MODEL": "$haiku", "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "1000000", "ENABLE_TOOL_SEARCH": "0" } }
+      },
+      "defaultActiveGroup": "latest",
+      "discovery": {
+        "modelsUrl": "https://open.bigmodel.cn/api/anthropic/v1/models",
+        "auth": "bearer",
+        "fallback": { "latest": "glm-5.2[1m]", "haiku": "glm-5" },
+        "pick": {
+          "latest": { "match": "^glm-[0-9.]+$", "decorate": "[1m]" },
+          "haiku":  { "match": "^glm-[0-9.]+$", "previous": true }
+        }
+      }
+    },
+    {
+      "key": "minimax",
+      "name": "MiniMax",
+      "type": "Claude",
+      "apiUrl": "https://api.minimax.io/anthropic",
+      "description": "MiniMax (Anthropic 协议兼容)",
+      "customEnv": { "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1" },
+      "modelGroups": {
+        "latest":   { "label": "全部最新模型", "config": { "DEFAULT_MODEL": "$latest", "ENABLE_TOOL_SEARCH": "0" } },
+        "balanced": { "label": "合理均衡配置", "config": { "DEFAULT_MODEL": "$latest", "ENABLE_TOOL_SEARCH": "0" } }
+      },
+      "defaultActiveGroup": "latest",
+      "discovery": {
+        "modelsUrl": "https://api.minimax.io/anthropic/v1/models",
+        "auth": "bearer",
+        "fallback": { "latest": "MiniMax-M2.7" },
+        "pick": {
+          "latest": { "match": "^MiniMax-M[0-9.]+$", "flags": "i" }
+        }
+      }
+    },
+    {
+      "key": "qwen",
+      "name": "通义千问 (Qwen)",
+      "type": "Claude",
+      "apiUrl": "https://dashscope.aliyuncs.com/apps/anthropic",
+      "description": "阿里云百炼 Qwen (Anthropic 协议兼容,仅 /v1/messages)",
+      "customEnv": { "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1" },
+      "modelGroups": {
+        "latest":   { "label": "全部最新模型", "config": { "DEFAULT_MODEL": "qwen3-coder-plus", "ENABLE_TOOL_SEARCH": "0" } },
+        "balanced": { "label": "合理均衡配置", "config": { "DEFAULT_MODEL": "qwen3-coder-plus", "ENABLE_TOOL_SEARCH": "0" } }
+      },
+      "defaultActiveGroup": "latest"
+    },
+    {
+      "key": "kimi",
+      "name": "Kimi (Moonshot)",
+      "type": "Claude",
+      "apiUrl": "https://api.moonshot.ai/anthropic",
+      "description": "Kimi Moonshot (Anthropic 协议兼容)",
+      "customEnv": { "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1" },
+      "modelGroups": {
+        "latest":   { "label": "全部最新模型", "config": { "DEFAULT_MODEL": "$latest", "ENABLE_TOOL_SEARCH": "0" } },
+        "balanced": { "label": "合理均衡配置", "config": { "DEFAULT_MODEL": "$latest", "ANTHROPIC_DEFAULT_HAIKU_MODEL": "$haiku", "ENABLE_TOOL_SEARCH": "0" } }
+      },
+      "defaultActiveGroup": "latest",
+      "discovery": {
+        "modelsUrl": "https://api.moonshot.ai/v1/models",
+        "auth": "bearer",
+        "fallback": { "latest": "kimi-k3", "haiku": "kimi-k2" },
+        "pick": {
+          "latest": { "match": "^kimi-k[0-9.]+$" },
+          "haiku":  { "match": "^kimi-k[0-9.]+$", "previous": true }
+        }
+      }
+    }
+  ]
+}

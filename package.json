@@ -1,13 +1,13 @@
 {
     "name": "ai-account-switch",
-    "version": "1.13.0",
+    "version": "1.14.0",
     "description": "A cross-platform CLI tool to manage and switch Claude/Codex/Droids account configurations",
     "main": "src/index.js",
     "bin": {
         "ais": "./bin/ais.js"
     },
     "scripts": {
-        "test": "node src/index.js",
+        "test": "node --test tests/*.test.js",
         "link": "npm link"
     },
     "keywords": [
@@ -33,7 +33,7 @@
         "inquirer": "^8.2.5"
     },
     "engines": {
-        "node": ">=16.0.0"
+        "node": ">=18.0.0"
     },
     "repository": {
         "type": "git",

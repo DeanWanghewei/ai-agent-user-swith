@@ -89,9 +89,18 @@ class UIServer {
 
     // API Routes
     if (pathname === '/api/presets' && req.method === 'GET') {
-      const { getPresets } = require('./presets');
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(getPresets()));
+      // Best-effort remote registry refresh (bounded timeout, silent fallback
+      // to cache/built-ins) so the dropdown picks up new models without a release.
+      require('./presets').ensureFreshPresets({ timeoutMs: 3000 })
+        .then((presets) => {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(presets));
+        })
+        .catch(() => {
+          const { getPresets } = require('./presets');
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(getPresets()));
+        });
       return;
     } else if (pathname === '/api/accounts' && req.method === 'GET') {
       this.handleGetAccounts(req, res);

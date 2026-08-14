@@ -18,6 +18,7 @@ const {
   useModelGroup,
   removeModelGroup,
   showModelGroup,
+  refreshModelGroups,
   addMcpServer,
   listMcpServers,
   showMcpServer,
@@ -139,6 +140,12 @@ modelCommand
   .command('show [name]')
   .description('Show model group configuration (显示模型组配置)')
   .action(showModelGroup);
+
+modelCommand
+  .command('refresh [name]')
+  .description('Refresh preset model groups to the latest models, with confirmation (刷新预设模型组至最新模型,需确认)')
+  .option('-y, --yes', 'Apply without asking for confirmation (跳过确认直接应用)')
+  .action(refreshModelGroups);
 
 // MCP management commands
 const mcpCommand = program

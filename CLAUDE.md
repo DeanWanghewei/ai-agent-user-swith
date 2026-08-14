@@ -10,10 +10,13 @@ AI Account Switch (ais) 是一个跨平台的命令行工具，用于在项目�
 
 ### 测试
 ```bash
-# 本地运行 CLI 工具
+# 运行单元测试 (node --test, Node >= 18)
 npm test
 
-# 全局链接以便测试
+# 运行单个测试文件
+node tests/presets.test.js
+
+# 全局链接以便手动测试 CLI
 npm link
 ```
 
@@ -47,12 +50,18 @@ npm link
 **命令模块 (`src/commands/`)**
 - 模块化命令结构，单一职责
 - `account.js` - 账号 CRUD 操作（添加、列表、使用、删除、导出）
-- `model.js` - Claude 账号的模型组管理
+- `model.js` - Claude 账号的模型组管理（含 `ais model refresh`：实时解析最新模型并 diff 确认后应用）
 - `mcp.js` - MCP (Model Context Protocol) 服务器管理
 - `env.js` - 环境变量管理（列表、添加、设置、删除、显示、清空、编辑）
 - `utility.js` - 诊断和辅助命令（doctor、paths）
 - `helpers.js` - 共享工具函数（maskApiKey、验证）
 - `index.js` - 统一导出接口
+
+**Provider 预设与模型自动更新（`src/presets.js` / `src/registry.js` / `src/model-discovery.js`）**
+- `presets.js` - 内置 Claude 协议预设（GLM/MiniMax/Qwen/Kimi），模型名用 `$latest`/`$haiku` 占位符；`getPresets()` 返回物化后的具体模型名
+- `registry.js` - 远程预设 registry 客户端：拉取仓库根目录 `presets.registry.json`（jsDelivr + GitHub raw 双 CDN），缓存到 `~/.ai-account-switch/presets.cache.json`（24h TTL）。**硬性要求：网络不可达时静默回退缓存/内置数据，绝不阻塞或报错**
+- `model-discovery.js` - 用账号 API Key 实时拉取提供商 `/v1/models`，按旗舰挑选规则（版本号降序 + 正则过滤）解析占位符；失败回退 `discovery.fallback` 静态值
+- 新模型发布（如 GLM-5.3）的维护方式：有 discovery 的提供商通常**零改动**（客户端实时解析）；仅需同步更新 `presets.registry.json` 的 fallback 值并提交到 main，用户 24h 内自动生效，无需发 npm 包
 
 **Web UI 服务器 (`src/ui-server.js`)**
 - 内嵌 HTML/CSS/JS 的 HTTP 服务器

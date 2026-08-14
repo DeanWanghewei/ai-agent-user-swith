@@ -8,7 +8,7 @@
 const chalk = require('chalk');
 const inquirer = require('inquirer');
 const ConfigManager = require('./config');
-const { PRESETS } = require('./presets');
+const { getPresets } = require('./presets');
 
 const BETAS = 'CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS';
 
@@ -62,7 +62,9 @@ async function maybeRunMigration() {
   if (last && last === currentVersion) return;
 
   const accounts = config.getAllAccounts();
-  const { needsBetas, presetMatch } = findMigrationCandidates(accounts, PRESETS);
+  // Materialized presets (placeholders resolved from discovery.fallback) so
+  // migrated accounts get concrete model names even when offline.
+  const { needsBetas, presetMatch } = findMigrationCandidates(accounts, getPresets());
 
   const totalCandidates = new Set([...needsBetas, ...presetMatch.map((m) => m.name)]).size;
   if (totalCandidates === 0) {
